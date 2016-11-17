@@ -1,0 +1,28 @@
+
+
+############################################
+
+
+		DocumentRoot /opt/laravel/www/archive/public/
+
+			RewriteEngine On
+
+			<Directory />
+				Options FollowSymLinks
+				AllowOverride None
+			</Directory>
+
+			<Directory /opt/laravel/www/archive/public>
+				Options Indexes FollowSymLinks MultiViews
+				AllowOverride All
+				Require all granted
+
+           XSendFile On
+	   XSendFilePath /opt/ins/export
+	   XSendFilePath /opt/ins/assetstore
+	   XSendFilePath /opt/ins/media
+
+			</Directory>
+
+
+############################################

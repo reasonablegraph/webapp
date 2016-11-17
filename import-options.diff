@@ -1,0 +1,65 @@
+diff -r ec99b4e19e2f app/controllers/MarcController.php
+--- a/app/controllers/MarcController.php	Tue Jun 21 13:36:33 2016 +0300
++++ b/app/controllers/MarcController.php	Tue Jul 19 10:25:00 2016 +0300
+@@ -6,7 +6,7 @@
+ class MarcController extends BaseController {
+ 
+ 
+-	private function _import(&$out,$file_path){
++	private function _import(&$out, $file_path, $objType, $dryRun) {
+ 		require 'File/MARC.php';
+ 		$journals = new File_MARC($file_path);
+ 		while ($record = $journals->next()) {
+@@ -22,15 +22,17 @@
+ 				}
+ 			}
+ 			$out .= sprintf("$title_a   ‡  $title_b ‡ $title_c\n");
++			if ($dryRun) {
++				continue;
++			}
+ 
+ 
+ 			$idata = new ItemMetadata();
+ 			//$uuid = PDao::createUUID();
+ 
+ 			$title = $title_a;
+-			$obj_type = "auth-manifestation";
+ 			$w = 0;
+-			$idata->addValueSK ( DataFields::ea_obj_type, $obj_type, null, null, null, null, null, null, $w ++ );
++			$idata->addValueSK ( DataFields::ea_obj_type, $objType, null, null, null, null, null, null, $w ++ );
+ 			$idata->addValueSK ( DataFields::dc_title, $title, null, null, null, null, null, null, $w ++ );
+ 			$idata->addValueSK ('ea:manif:Title_Remainder', $title_b, null, null, null, null, null, null, $w ++ );
+ 			$idata->addValueSK ('ea:manif:Title_Responsibility', $title_c, null, null, null, null, null, null, $w ++ );
+@@ -52,6 +54,9 @@
+ 		echo '<form method="post" enctype="multipart/form-data">';
+ 		//echo '<input type="file" name="fileToUpload" id="fileToUpload" style="float:left">';
+ 		echo '<input name="uploadedfile[]" type="file" multiple="multiple" style="float:left" />';
++		echo '<input type="radio" name="objType" value="auth-manifestation" checked /> Manifestation <br/>';
++		echo '<input type="radio" name="objType" value="auth-person" /> Person <br/>';
++		echo '<input type="checkbox" name="dryRun" value="true" /> Dry Run <br/>';
+ 		echo '<input type="submit" name="import" value="import"  style="clear:right"/>';
+ 		echo '</form>';
+ 		echo '</div>';
+@@ -64,7 +69,12 @@
+ 		if (!($import)) {
+ 			return;
+ 		}
+-
++		
++		
++		$dryRun = false;
++		if (isset($_POST['dryRun']) && $_POST['dryRun'] == 'true') {
++			$dryRun = true;
++		}
+ 
+ 		$extract_file_info_from_upload_form = function (){
+ 			$app= App::make('arc');
+@@ -84,7 +94,7 @@
+ 		if ($file_path != null ){
+ 
+ 			$out ='';
+-			$this->_import($out, $file_path);
++			$this->_import($out, $file_path, $_POST['objType'], $dryRun);
+ 			echo("<pre>");
+ 			echo $out;
+ 			echo("</pre>");

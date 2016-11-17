@@ -1,0 +1,19 @@
+
+
+
+-- AUTHORIZATION
+------------------------------------------------
+ArcApp::auth_check();
+ArcApp::user_access_mentainer();
+ArcApp::user_access_admin();
+ArcApp::has_permission($permision);
+
+--
+------------------------------------------------
+ArcApp::title($title = null);
+ArcApp::username();
+
+--
+------------------------------------------------
+ArcApp::template($template = null);
+ArcApp::user_access();

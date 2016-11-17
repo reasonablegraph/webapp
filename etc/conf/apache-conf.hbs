@@ -1,0 +1,101 @@
+<VirtualHost {{{drupal.VirtualHost.ip}}}:{{{drupal.VirtualHost.port}}}>
+
+        ServerName  {{{drupal.ServerName}}}
+        ServerAdmin {{{drupal.ServerAdmin}}}
+
+        AddDefaultCharset     UTF-8
+
+
+        ErrorLog {{{drupal.ErrorLog}}}
+
+        # Possible values include: debug, info, notice, warn, error, crit,
+        # alert, emerg.
+        LogLevel warn
+				#rewrite:trace3
+
+        CustomLog {{{drupal.CustomLog}}}
+        ServerSignature Off
+
+
+			Alias /ws/ /opt/laravel/www/archive/public/
+
+		<Directory /opt/laravel/www/archive/public/>
+				Options Indexes FollowSymLinks MultiViews
+				Require all granted
+				AllowOverride None
+
+		   XSendFile On
+			 XSendFilePath /opt/ins/export
+			 XSendFilePath /opt/ins/assetstore
+			 XSendFilePath /opt/ins/media
+
+			 RewriteEngine On
+
+				#RewriteBase /
+
+				# Redirect Trailing Slashes...
+				RewriteRule ^(.*)/$ /$1 [L,R=301]
+
+				# Handle Front Controller...
+				RewriteCond %{REQUEST_FILENAME} !-d
+				RewriteCond %{REQUEST_FILENAME} !-f
+				#RewriteRule ^/ws/(.*)$ index.php [L]
+				#RewriteRule ^/ws/(.*)$ (.*)
+			 	RewriteRule ^ /ws/index.php [L]
+
+			</Directory>
+			
+			Include {{{drupal.IncludeConf}}}
+			
+</VirtualHost>
+
+
+
+
+
+<VirtualHost {{{laravel.VirtualHost.ip}}}:{{{laravel.VirtualHost.port}}}>
+
+        ServerName  {{{laravel.ServerName}}}
+        ServerAdmin {{{laravel.ServerAdmin}}}
+
+        AddDefaultCharset     UTF-8
+
+
+        ErrorLog {{{laravel.ErrorLog}}}
+
+        # Possible values include: debug, info, notice, warn, error, crit,
+        # alert, emerg.
+        LogLevel warn
+
+        CustomLog {{{laravel.CustomLog}}}
+        ServerSignature Off
+
+
+		DocumentRoot /opt/laravel/www/archive/public/
+
+			RewriteEngine On
+
+			<Directory />
+				Options FollowSymLinks
+				AllowOverride None
+			</Directory>
+
+			<Directory /opt/laravel/www/archive/public>
+				Options Indexes FollowSymLinks MultiViews
+				AllowOverride All
+				Require all granted
+
+           XSendFile On
+	   XSendFilePath /opt/ins/export
+	   XSendFilePath /opt/ins/assetstore
+	   XSendFilePath /opt/ins/media
+
+			</Directory>
+
+
+
+
+
+
+</VirtualHost>
+

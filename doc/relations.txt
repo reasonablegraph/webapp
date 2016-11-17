@@ -1,0 +1,60 @@
+
+
+
+
+
+
+
+
+=====================================================================================================
+ get_item_metadata: 101 [] []
+ changeRelation: 1 [] []
+ CHANGE INFERENCE: GONIOS : ea:relation:PersonOtherParent ref: 102 [] []
+------------------------------------------------------------------------------------------------------
+
+ get_item_metadata: 101 [] []
+ ItemSave::save_item [] []
+ changeRelation: 2 [] []
+ LOAD INIT GRAPH (1) [] []
+ loadNodeNeighbourhood: 101 : 101 [] []
+ UPDATE_ITEM [] []
+ update_item_metadata: CHANGE INFERENCE TO FALSE: 101 key: ea:relation:PersonOtherParent ref: 102 [] []
+
+ RULE ENGINE: 101 [] []
+ REMOVE ITEM RELATIONS EDGES (g0) : 101 [] []
+ REMOVE EDGE : e:[ov:‡ea:relation:PersonOtherChild‡oi:102‡oi:101‡] id: 34 I: F [] []
+ REMOVE EDGE : e:[D ov:‡ea:relation:PersonOtherParent‡oi:101‡oi:102‡] id: 42 I: T [] []
+ reverse relation: oi:101  --[ea:relation:PersonOtherParent]--> oi:102 ADD: oi:102 --[ea:relation:PersonOtherChild]--> oi:101 [] []
+ findDiff: ----------------------------------------------------------- [] []
+ findDiff: ############################################################## [] []
+ nv:‡ea:relation:PersonOtherChild‡oi:102‡oi:101‡ i: T [] []
+ findDiff: ----------------------------------------------------------- [] []
+=====================================================================================================
+
+
+
+
+
+1) apostoli idata ston client:
+-----------------------------------------------------------------------------
+	1) idata changeRelation: 1
+
+
+2) epistrofi idata apo client:
+-----------------------------------------------------------------------------
+	1) idata changeRelation: 2
+	2) g0 = loadNodeNeighbourhood
+	3) idata CHANGE INFERENCE TO FALSE
+	4) SAVE idata
+	5) RULE ENGINE
+	5.1)  dump(g0 as g0)
+	5.2)  gr: load graph
+	5.3)  g0: REMOVE ITEM RELATION EDGES REMOVE ALSO FROM DATABASE
+	5.4)  dump(g0 as g1);
+	5.3)  gr: RULES:  dump(gr as g2), ....rules... , dump(gr as g3)
+	5.4)  SAVE DIFF g0,gr
+
+
+
+
+
