@@ -3,7 +3,7 @@ class EditItemController extends BaseController {
 
 
 
-	function create_item() {
+	public function create_item() {
 		Log::info("CREATE ITEM");
 		auth_check_mentainer();
 
@@ -27,12 +27,13 @@ class EditItemController extends BaseController {
 
 
 		//xx
-	function create_subitem() {
+public function create_subitem() {
 		$pid = getmypid();
-		Log::info(">>>>>>>>>>>>>>>>>> CREATE SUBITEM: " . $pid);
+		Log::info(">>>>>>>>>>>>>>>>>> CREATE SUBITEM pid: " . $pid);
 		auth_check_mentainer();
 
 		if (empty($_POST)) {
+			Log::info("[EMPTY POST]");
 			return;
 		}
 
@@ -48,7 +49,12 @@ class EditItemController extends BaseController {
 			// return;
 			// }
 
-			// Log::info(print_r($_POST,true));
+			//Log::info(print_r($_POST,true));
+		$subitemFlag = true;
+		if (isset($_POST['SUBITEM']) && $_POST['SUBITEM'] == 'FALSE'){
+			$subitemFlag = false;
+		}
+
 			$idata = new ItemMetadata();
 			foreach ( $_POST as $pk => $pv ) {
 				if (! PUtil::strBeginsWith($pk, 'tmp:')) {
@@ -74,7 +80,8 @@ class EditItemController extends BaseController {
 			$is = new ItemSave();
 			$is->setIdata($idata);
 			$is->setUserName($userName);
-			$item_id = $is->save_item(true);
+			$is->setRlock($rlock);
+			$item_id = $is->save_item($subitemFlag);
 
 			$rlock->release();
 
@@ -85,7 +92,6 @@ class EditItemController extends BaseController {
 
 			$rep = array("item_id"=>$item_id,'label'=>$label, 'ot'=>$ot);
 
-
 // 			$neighbourhood = GGraphIO::getNeighbourhoodIds($item_id);
 // 			Log::info(print_r($neighbourhood,'true'));
 // 			if (!empty($neighbourhood)){
@@ -93,6 +99,9 @@ class EditItemController extends BaseController {
 // 					Log::info('neighbourhood ' . $name . ' : ' . implode(',',$ids));
 // 				}
 // 			}
+			//Log::info(print_r($rep,true));
+
+
 
 			Log::info("<<<<<<<<<<<<<<<<<< CREATE SUBITEM: " . $pid . ' ITEM  ID: ' . $item_id);
 			$response = Response::make($rep, 200);
@@ -109,8 +118,11 @@ class EditItemController extends BaseController {
 
 
 
-	function step1() {
+public function step1() {
 		auth_check();
+
+		Log::info("STEP1");
+		//if (!empty($_POST)) {	Log::info(print_r($_POST,true));		}
 
 		$app = App::make('arc');
 
@@ -135,6 +147,7 @@ class EditItemController extends BaseController {
 
 		$submit_id = get_get("s");
 		$item_id = get_get("i");
+		$ptype = get_get("type");
 		$edoc = get_get("edoc");
 		$cd = get_get("cd");
 		$wfdata['cd'] = $cd;
@@ -145,6 +158,22 @@ class EditItemController extends BaseController {
 		$redirect_item = get_get("rd");
 		$personal_name = get_get("pn");
 
+		// check for active submission
+		if (!empty($item_id)) {
+			$SQL = "select count(id) as count from dsd.submits where item_id = ? and status NOT IN (?, ?) and ((current_timestamp - update_dt) < interval '1 hour')";
+			$stmt = $dbh->prepare($SQL);
+			$stmt->bindParam(1, $item_id);
+			$stmt->bindParam(2, SubmitsStatus::$finished);
+			$stmt->bindParam(3, SubmitsStatus::$error);
+			$stmt->execute();
+			$r = $stmt->fetch();
+			if (intval($r[0]) > 0) {
+				ArcApp::template('admin.edit_item_step1_already_active_submission');
+				return $this->show();
+			}
+		}
+
+		$owner = null;
 		//lock edit form submitter
 		$is_admin = ArcApp::user_access_admin();
 		$edit_lock_owner = Config::get('arc.owner_edit_form_lock',0);
@@ -286,8 +315,11 @@ class EditItemController extends BaseController {
 
 		$item_load_flag = false;
 
+		$data = null;
+		$wfdata_text = null;
+		$submits_type = null;
 		if (! empty($submit_id)) {
-			error_log("edit_step1: load data from submits ($submit_id)", 0);
+			//error_log("edit_step1: load data from submits ($submit_id)", 0);
 			$SQL = "SELECT item_id, data, edoc, wf_data, type from dsd.submits where id = ? ";
 			$stmt = $dbh->prepare($SQL);
 			$stmt->bindParam(1, $submit_id);
@@ -368,7 +400,7 @@ class EditItemController extends BaseController {
 			$wfdata['item_collection'] = $item_collection;
 
 			if (! empty($item_id)) {
-				error_log("edit_step1: load data from item ($item_id) merge with post", 0);
+				//error_log("edit_step1: load data from item ($item_id) merge with post", 0);
 				$idata = PDao::get_item_metadata($item_id);
 			}
 
@@ -417,11 +449,13 @@ class EditItemController extends BaseController {
 			$title = empty($title) ? null : $title[0];
 
 			if (! empty($submit_id)) {
+			    $submit_status = 2;
 				if (empty($item_id)) {
 					$item_id = null;
+					$submit_status = 1;
 				}
 
-				$SQL = " update dsd.submits set user_name = ?, data = ?, item_id = ? , title = ?, edoc = ?, wf_data = ?, type=1 WHERE id = ? ";
+				$SQL = " update dsd.submits set user_name = ?, data = ?, item_id = ? , title = ?, edoc = ?, wf_data = ?, status = ?, type=1 WHERE id = ? ";
 				$stmt = $dbh->prepare($SQL);
 				$stmt->bindParam(1, $user);
 				$stmt->bindParam(2, $data);
@@ -429,22 +463,26 @@ class EditItemController extends BaseController {
 				$stmt->bindParam(4, $title);
 				$stmt->bindParam(5, $edoc);
 				$stmt->bindParam(6, $wfdata_text);
+                $stmt->bindParam(7, $submit_status);
 				// $stmt->bindParam(7, $data_norm);
-				$stmt->bindParam(7, $submit_id);
+				$stmt->bindParam(8, $submit_id);
 
 				$stmt->execute();
 			} else {
+                $submit_status = 2;
 				if (empty($item_id)) {
 					$item_id = null;
+                    $submit_status = 1;
 				}
 
+				$nextval = null;
 				$SQL = "SELECT nextval('dsd.submits_id_seq')";
 				$stmt = $dbh->prepare($SQL);
 				$stmt->execute();
 				$stmt->bindColumn(1, $nextval);
 				$stmt->fetch();
 
-				$SQL = "insert into dsd.submits (id, user_name, data, item_id, title, edoc, wf_data) values (?,?,?,?,?,?,?)";
+				$SQL = "insert into dsd.submits (id, user_name, data, item_id, title, edoc, wf_data, status, final_item_id) values (?,?,?,?,?,?,?,?,?)";
 				$stmt = $dbh->prepare($SQL);
 				$stmt->bindParam(1, $nextval);
 				$stmt->bindParam(2, $user);
@@ -453,6 +491,8 @@ class EditItemController extends BaseController {
 				$stmt->bindParam(5, $title);
 				$stmt->bindParam(6, $edoc);
 				$stmt->bindParam(7, $wfdata_text);
+				$stmt->bindParam(8, $submit_status);
+				$stmt->bindParam(9, $item_id);
 				// $stmt->bindParam(8, $data_norm);
 				$stmt->execute();
 
@@ -488,6 +528,8 @@ class EditItemController extends BaseController {
 			// unset($_SESSION['info_messages']);
 			// unset($_SESSION['warn_messages']);
 			// }
+		} else {
+			PUtil::log("#wdebug# #e#: edit requested");
 		}
 
 		$type = $idata->getValueTextSK(DataFields::ea_obj_type);
@@ -505,6 +547,7 @@ class EditItemController extends BaseController {
 			// drupal_set_title ( "step1: $edoc" );
 			$app->title = "step1: $edoc";
 		} else if (! empty($item_id)) {
+			$title_org = null;
 			$SQL = "SELECT title from dsd.item2 WHERE item_id = ? ";
 			$stmt = $dbh->prepare($SQL);
 			$stmt->bindParam(1, $item_id);
@@ -532,6 +575,7 @@ class EditItemController extends BaseController {
 		$_REQUEST['submit_id'] = $submit_id;
 		$_REQUEST['edoc'] = $edoc;
 		$_REQUEST['cd'] = $cd;
+		$_REQUEST['type'] = $ptype;
 		$_REQUEST['item_collection'] = $item_collection;
 		$_REQUEST['wfdata'] = $wfdata;
 
@@ -549,7 +593,7 @@ class EditItemController extends BaseController {
 	}
 
 	// ///////
-	function step2() {
+public function step2() {
 		$app = App::make('arc');
 
 		$dbh = dbconnect();
@@ -579,6 +623,7 @@ class EditItemController extends BaseController {
 		$item_in_archive = null;
 		$item_create_dt = null;
 		$item_update_dt = null;
+		$has_bitstreams = null;
 
 		//activity_log
 		$url = $_SERVER['REQUEST_URI'];
@@ -589,8 +634,13 @@ class EditItemController extends BaseController {
 		$type_act = 'admin';
 		PDao::activity_log($type_act, $user, $url);
 
+
+
 		if (isset($_GET['s'])) {
 
+			$data = null;
+			$edoc = null;
+			$wfdata_text = null;
 			$submit_id = $_GET['s'];
 			$SQL = "SELECT item_id, data, edoc, wf_data from dsd.submits where id = ? ";
 			$stmt = $dbh->prepare($SQL);
@@ -626,9 +676,43 @@ class EditItemController extends BaseController {
 			$item_load_flag = true;
 			$item_id = intval($_GET['i']);
 			$idata = PDao::get_item_metadata($item_id);
+
+
+			#################################################################################################################
+
+			if (! empty($_POST['error'])) {
+				$idata->setValueSK('ea:status:', 'error');
+				$is = new ItemSave();
+				$is->setIdata($idata);
+				$is->setItemId($item_id);
+				$item_id = $is->save_item();
+				$idata = PDao::get_item_metadata($item_id);
+
+				if (Config::get('arc.ENABLE_SOLR',1)>0) {
+					Log::info("SOLR TRY DELETE ITEM ".$item_id);
+					try {
+						$client = new Solarium\Client(array('endpoint' => PUtil::getSolrConfigEndPoints('opac')));
+						$update = $client->createUpdate();
+						//$update->addDeleteQuery('id:'.$item_id);
+						$update->addDeleteById($item_id);
+						$update->addCommit();
+						$result = $client->update($update);
+						Log::info("SOLR DELETE ITEM ".$item_id);
+						Log::info('SOLR Query status: ' . $result->getStatus());
+						Log::info('SOLR Query time: ' . $result->getQueryTime());
+					} catch (Exception $e) {
+						Log::info("SOLR DELETE ITEM ".$item_id." FAILED " . $e->getMessage());
+						Log::info($e);
+					}
+				}
+			}
+
+			#################################################################################################################
+
 			$obj_type = $idata->getValueText('ea', 'obj-type');
 			$bitstream_flag = $obj_type == 'bitstream';
-
+			$item_incoming = null;
+			$user_create = null;
 			$SQL = "select status,bibref,fts_catalogs,lang,uuid,folder,issue_aggr,in_archive,pages, dt_create ,dt_update,incoming,site,user_create FROM dsd.item2 WHERE item_id = ? ";
 			$stmt = $dbh->prepare($SQL);
 			$stmt->bindParam(1, $item_id);
@@ -672,6 +756,7 @@ class EditItemController extends BaseController {
 			// drupal_set_title("step2: $edoc");
 			$app->title = "step2: $edoc";
 		} else if (! empty($item_id)) {
+			$title_org =  null;
 			$SQL = "SELECT title from dsd.item2 WHERE item_id = ? ";
 			$stmt = $dbh->prepare($SQL);
 			$stmt->bindParam(1, $item_id);
@@ -709,12 +794,136 @@ class EditItemController extends BaseController {
 
 		if ($finalize && $err_counter == 0) {
 			$submit_id = $_GET['s'];
-			$URL = "/prepo/edit_step3?submit_id=$submit_id";
-			error_log("redirect $URL");
+			$URL = "/prepo/edit_step3?submit_id=" . $submit_id; // default redirection url for non-async-workers mode
+			$async_workers_enable = Config::get('arc.async_workers_enable', 0);
+
+			if ($async_workers_enable) {
+				// construct job workload
+				$wl = new stdClass();
+				$wl->submit_id = $submit_id;
+				$wl->userName = ArcApp::username();
+				$wl->uid = ArcApp::uid();
+				$wl->locale = App::getLocale();
+
+				// send job to worker
+				$gmclient = new GearmanClient();
+				$gmclient->addServer();
+
+				$sync_flag = get_get('sf', '0') == '1'; // mainly for testing workers in sync mode
+
+				PUtil::log("#wdebug# #s#: submit save requested");
+				if ($sync_flag) {
+					$gmclient->doNormal(WorkerPrefixes::$edit_step3, json_encode($wl));
+				} else {
+					$gmclient->doBackground(WorkerPrefixes::$edit_step3, json_encode($wl));
+				}
+
+				$URL = "/prepo/cataloging?s_id=" . $submit_id; // redirect to cataloging if new item
+				if (!empty($item_id)) {
+					$URL = "/prepo/edit_step3?i=" . $item_id; // redirect to admin page if old item
+				}
+			}
+
+			//error_log("redirect $URL");
 			$response = Response::make('', 301);
 			$response->header('Location', $URL);
 			return $response;
 		}
+
+		if (!empty($item_id)) {
+		$has_bitstreams = PDao::hasBitstreams($item_id);
+		}
+
+
+
+		//DRYLL
+		$basic = PDao::getItemBasic($item_id);
+		$project = Config::get('arc.PROJECT_NAME');
+		$is_periodic = false;
+		$submit_periodic_send_email = false;
+		$is_book = false;
+		$submit_book_send_email = false;
+		$is_issue = false;
+		$submit_issue_send_email = false;
+
+		if ($project == 'dryl'){
+
+			if ($basic['obj_type'] == 'periodic'){
+				$is_periodic = true;
+				if (!empty($_POST['periodic_send_email'])) {
+					$prm_secretary_email = Config::get('arc.PRIMARY_SECRETARY_EMAIL');
+					$item_label = $basic['label'];
+					Mail::send('emails.dryl.secretary_periodic', array('label' => $item_label), function($message) use ($prm_secretary_email,$item_label)
+					{
+						$message->to($prm_secretary_email, tr('email_to_secretary'));
+						$message->subject(tr('email_secretary_periodic_subject').$item_label);
+					});
+					$submit_periodic_send_email = true;
+				}
+			}
+			if ($basic['obj_type'] == 'auth-manifestation'){
+				if (!empty($basic['flags_json'])){
+					$flags = json_decode($basic['flags_json'], true);
+					if (in_array('IS:book',$flags)){
+						$is_book = true;
+						if (!empty($_POST['book_send_email'])) {
+							$prm_secretary_email = Config::get('arc.PRIMARY_SECRETARY_EMAIL');
+							$scd_secretary_email = Config::get('arc.SECONDARY_SECRETARY_EMAIL', null);
+							$item_label = $basic['label'];
+							Mail::send('emails.dryl.secretary_book', array('label' => $item_label), function($message) use ($prm_secretary_email,$scd_secretary_email,$item_label)
+							{
+								$message->to($prm_secretary_email, tr('email_to_secretary'));
+								if(!empty($scd_secretary_email)){
+									$message->cc($scd_secretary_email, tr('email_to_lawyers'));
+								}
+								$message->subject(tr('email_secretary_book_subject').$item_label);
+							});
+							$submit_book_send_email = true;
+						}
+					}elseif(in_array('IS:issue',$flags)){
+						$is_issue = true;
+						if (!empty($_POST['issue_send_email'])) {
+							$item_label = $basic['label'];
+							$itemRelationsFrom = PDao::getItemRelationsFrom($item_id);
+							$emails = array();
+							if(!empty($itemRelationsFrom)){
+								foreach ($itemRelationsFrom as  $key => $relitem){
+									if ($relitem['obj_type'] == 'periodic'){
+										$jdata = json_decode($relitem['jdata'], true);
+										if(!empty($jdata['opac2']['lawyers_emails'])){
+											$lawyers_emails = $jdata['opac2']['lawyers_emails'];
+											foreach ($lawyers_emails as  $email){
+												$emails[]=$email;
+											}
+										}
+									}
+								}
+							}
+							if(!empty($emails)){
+								$prm_secretary_email = Config::get('arc.PRIMARY_SECRETARY_EMAIL');
+								Mail::send('emails.dryl.secretary_issue', array('label' => $item_label), function($message) use ($prm_secretary_email,$emails,$item_label){
+										foreach ($emails as  $email){
+											$message->to($email, tr('related_lawyer'));
+										}
+										$message->cc($prm_secretary_email, tr('email_to_secretary'));
+										$message->subject(tr('email_secretary_issue_subject').$item_label);
+									});
+									$submit_issue_send_email = true;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		$_REQUEST['is_periodic'] = $is_periodic; //DRYLL
+		$_REQUEST['periodic_notification'] = $submit_periodic_send_email; //DRYLL
+		$_REQUEST['is_book'] = $is_book; //DRYLL
+		$_REQUEST['book_notification'] = $submit_book_send_email; //DRYLL
+		$_REQUEST['is_issue'] = $is_issue; //DRYLL
+		$_REQUEST['issue_notification'] = $submit_issue_send_email; //DRYLL
+		//**
+
 
 		$_REQUEST['submit_id'] = $submit_id;
 		$_REQUEST['item_id'] = $item_id;
@@ -741,12 +950,13 @@ class EditItemController extends BaseController {
 		$_REQUEST['item_create_dt'] = $item_create_dt;
 		$_REQUEST['item_update_dt'] = $item_update_dt;
 		$_REQUEST['item_user_create'] = $user_create;
+		$_REQUEST['has_bitstreams'] = $has_bitstreams;
 
 		$this->show();
 	}
 
 
-	function save_submit() {
+	public function save_submit() {
 		//Log::info("SAVE_SUBMIT");
 		// $postdata = file_get_contents("php://input");
 		// Log::info($postdata);
@@ -850,13 +1060,14 @@ class EditItemController extends BaseController {
 	/**
 	 *  STEP3
 	 */
-	function step3() {
+public function step3() {
+		Log::info(">>>>>>>>>>>>>>>>>> EDIT_ITEM_STEP3: ");
 		ArcApp::auth_check();
 
 		$userName = ArcApp::username();
 
-		$item_id  = intval(get_get("i"));
-		$submit_id = intval(get_post_get('submit_id'));
+		$item_id  = (int)get_get("i");
+		$submit_id = (int)get_post_get('submit_id');
 
 		//activity_log
 		$url = $_SERVER['REQUEST_URI'];
@@ -890,9 +1101,9 @@ class EditItemController extends BaseController {
 				ArcApp::template('admin.edit_item_step3_old_rec');
 
 			} else {
-
+				$lock_msg = isset($submit_data['item_id'])? $submit_data['item_id'] : null;
 				$rlock = new GRuleEngineLock();
-				$rlock->lock();
+				$rlock->lock($lock_msg);
 
 
 				ArcApp::template('admin.edit_item_step3_new_rec');
@@ -929,6 +1140,7 @@ class EditItemController extends BaseController {
 				$is->setWfdata($submit_data['wfdata']);
 				$is->setUserName($userName);
 				$is->setItemId($submit_data['item_id']);
+				$is->setRlock($rlock);
 
 				$idata->validate();
 				$errors = $idata->getErrors();
@@ -968,7 +1180,7 @@ class EditItemController extends BaseController {
 
 		$create_ts =(new DateTime($item['dt_create']))->getTimestamp();
 		$create_user =$item['user_create'];
-
+		$item['user_org'] = PDao::getUserOrganization($create_user);
 
 // 		$dbh = dbconnect();
 // 		$SQL="
@@ -1021,9 +1233,109 @@ class EditItemController extends BaseController {
 
 		$bitstreams = PDao::getBitstreams($item_id);
 
+		#################################################################################################################
+		$status = null;
+		$basic = PDao::getItemBasic($item_id);
+		$status = $basic['status'];
+
+		if (! empty($_POST['error'])) {
+			$idata->setValueSK('ea:status:', 'error');
+			$is = new ItemSave();
+			$is->setIdata($idata);
+			$is->setItemId($item_id);
+			$item_id = $is->save_item();
+			$idata = PDao::get_item_metadata($item_id);
+		}
+		#################################################################################################################
+
 		//$idata = Pdao::getItemMetadata($item_id);
 		//$obj_class = $item['obj_class'];
 		//$title = $item['label'];
+
+
+		//DRYLL
+		$project = Config::get('arc.PROJECT_NAME');
+		$is_periodic = false;
+		$submit_periodic_send_email = false;
+		$is_book = false;
+		$submit_book_send_email = false;
+		$is_issue = false;
+		$submit_issue_send_email = false;
+
+		if ($project == 'dryl'){
+
+			if ($basic['obj_type'] == 'periodic'){
+				$is_periodic = true;
+				if (!empty($_POST['periodic_send_email'])) {
+					$prm_secretary_email = Config::get('arc.PRIMARY_SECRETARY_EMAIL');
+					$item_label = $basic['label'];
+					Mail::send('emails.dryl.secretary_periodic', array('label' => $item_label), function($message) use ($prm_secretary_email,$item_label)
+					{
+						$message->to($prm_secretary_email, tr('email_to_secretary'));
+						$message->subject(tr('email_secretary_periodic_subject').$item_label);
+					});
+					$submit_periodic_send_email = true;
+				}
+			}
+
+			if ($basic['obj_type'] == 'auth-manifestation'){
+				if (!empty($basic['flags_json'])){
+					$flags = json_decode($basic['flags_json'], true);
+					if (in_array('IS:book',$flags)){
+						$is_book = true;
+						if (!empty($_POST['book_send_email'])) {
+							$prm_secretary_email = Config::get('arc.PRIMARY_SECRETARY_EMAIL');
+							$scd_secretary_email = Config::get('arc.SECONDARY_SECRETARY_EMAIL', null);
+							$item_label = $basic['label'];
+							Mail::send('emails.dryl.secretary_book', array('label' => $item_label), function($message) use ($prm_secretary_email,$scd_secretary_email,$item_label)
+							{
+								$message->to($prm_secretary_email, tr('email_to_secretary'));
+								if(!empty($scd_secretary_email)){
+									$message->cc($scd_secretary_email, tr('email_to_lawyers'));
+								}
+								$message->subject(tr('email_secretary_book_subject').$item_label);
+							});
+							$submit_book_send_email = true;
+						}
+					}elseif(in_array('IS:issue',$flags)){
+						$is_issue = true;
+						if (!empty($_POST['issue_send_email'])) {
+							$item_label = $basic['label'];
+							$itemRelationsFrom = PDao::getItemRelationsFrom($item_id);
+							$emails = array();
+							if(!empty($itemRelationsFrom)){
+								foreach ($itemRelationsFrom as  $key => $relitem){
+									if ($relitem['obj_type'] == 'periodic'){
+										$jdata = json_decode($relitem['jdata'], true);
+										if(!empty($jdata['opac2']['lawyers_emails'])){
+											$lawyers_emails = $jdata['opac2']['lawyers_emails'];
+											foreach ($lawyers_emails as  $email){
+												$emails[]=$email;
+											}
+										}
+									}
+								}
+							}
+							if(!empty($emails)){
+								$prm_secretary_email = Config::get('arc.PRIMARY_SECRETARY_EMAIL');
+								Mail::send('emails.dryl.secretary_issue', array('label' => $item_label), function($message) use ($prm_secretary_email,$emails,$item_label)
+								{
+									foreach ($emails as  $email){
+										$message->to($email, tr('related_lawyer'));
+									}
+									$message->cc($prm_secretary_email, tr('email_to_secretary'));
+									$message->subject(tr('email_secretary_issue_subject').$item_label);
+								});
+								$submit_issue_send_email = true;
+							}
+						}
+					}
+				}
+			}
+
+		}
+		//**
+
 
 		$data = array(
 				'item' => $item,
@@ -1031,8 +1343,20 @@ class EditItemController extends BaseController {
 				//'itemData' => $idata,
 				'relations'=>$relations,
 				'bitstreams'=>$bitstreams,
+				//'fm'=>get_get('fm'),
+       'submit_status' => PUtil::getSubmitStatusByItem($item_id),
+       'submits_pending' => PUtil::getSubmitsPending(),
+       'status' => $status,
+       'is_periodic' => $is_periodic, //DRYLL
+       'periodic_notification' => $submit_periodic_send_email, //DRYLL
+       'is_book' => $is_book, //DRYLL
+       'book_notification' => $submit_book_send_email, //DRYLL
+       'is_issue' => $is_issue, //DRYLL
+       'issue_notification' => $submit_issue_send_email, //DRYLL
+
 		);
 
+		Log::info("<<<<<<<<<<<<<<<<<< EDIT_ITEM_STEP3: " . $item_id);
 //		Log::info("TEMPLATE: " . 	ArcApp::template());
 		return $this->show($data);
 	}

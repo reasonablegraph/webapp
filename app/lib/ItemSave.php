@@ -19,6 +19,7 @@ class ItemSave {
 	private $item_collection;
 	private $thumb1;
 	private $userName;
+	private $rlock;
 
 	private $rule_context = null;
 	private $messages = array();
@@ -75,6 +76,13 @@ class ItemSave {
 		};
 	}
 
+	/**
+	 * @param GRuleEngineLock $rlock
+	 */
+	public function setRlock($rlock) {
+		$this->rlock = $rlock;
+	}
+
 
 
 	public function getRuleContext(){
@@ -82,7 +90,7 @@ class ItemSave {
 	}
 
 	//$rule_engine = function($g0,$item_id, $item_refs) {
-	public static function rule_engine($g0,$item_id, $item_refs,$subitemFlag=false){
+	public static function rule_engine($g0, $item_id, $item_refs, $subitemFlag = false, $rlock = null, $submit_id = null) {
 		Log::info('@:: RULE ENGINE: ' . $item_id . ' SUBITEM: ' . ($subitemFlag ? 'true' : 'false')  .  (empty($item_refs) ? '' : (' refs: ' . implode(',', $item_refs) )));
 
 		$debugFlag = Config::get('arc_rules.DEBUG',false);
@@ -98,6 +106,8 @@ class ItemSave {
 		$rule_mem =  Config::get('arc_rules.INIT_MEMORY',array());
 		$rule_mem['LOAD_ITEM_ID']=$item_id;
 		$rule_mem['LOAD_ITEM_REFS']=$item_refs;
+		$rule_mem['RLOCK'] = $rlock;
+		$rule_mem['SUBMIT_ID'] = $submit_id;
 
 		$g2 = new GGraphO();
 		$re = new GRuleEngine($rules, $rule_mem,$g2,array('old'=>$g0));
@@ -155,10 +165,36 @@ class ItemSave {
 			//$this->addMessage ("#touch");
 			//PDao::touch_item($item_id);
 
-			$this->addMessage ("#status update");
-			$submit_status = 10;
-			PDao::update_submits_status($this->submit_id,$item_id, $submit_status);
+			PDao::update_item2_access($item_id, $this->userName);
 
+			$data = serialize($idata->values);
+			$wfdata_text = serialize($this->wfdata);
+			PDao::item_add_history($item_id, $this->userName, $data, $wfdata_text);
+
+			$dbh->commit();
+			Log::info("@@: UPDATE_ITEM FINISH");
+		} catch ( PDOException $e ) {
+			$dbh->rollback();
+			$error = $e->getMessage();
+			echo ("ERROR ITEM NOT SAVED: $error\n");
+			error_log($error, 0);
+			exit();
+		}
+	}
+
+
+	public function update_item_batch_simple() {
+		$dbh = dbconnect();
+		$idata = $this->idata;
+		$item_id = $this->item_id;
+
+		try {
+			Log::info("@@: UPDATE_ITEM");
+			$dbh->beginTransaction();
+			$this->addMessage ("#basic metadata");
+
+			// update basic medatada
+			PUtil::save_basic_metadata_batch_simple($dbh, $item_id, $idata);
 			PDao::update_item2_access($item_id, $this->userName);
 
 			$data = serialize($idata->values);
@@ -268,10 +304,6 @@ class ItemSave {
 			// touch_item($dbh, $item_id);
 		//	PDao::touch_item($item_id);
 
-			$this->addMessage("#status update");
-			$submit_status = 10;
-			PDao::update_submits_status($this->submit_id, $item_id,$submit_status);
-
 			$dbh->commit();
 
 			if (! empty($thumb_uuid)) {
@@ -362,10 +394,6 @@ class ItemSave {
 			//$this->addMessage ("#touch");
 			//PDao::touch_item($item_id);
 
-			$this->addMessage ("#status update");
-			$submit_status = 10;
-			PDao::update_submits_status($this->submit_id, $item_id, $submit_status);
-
 			// $dbh->commit();
 
 			$this->addMessage ("#item basic works");
@@ -453,6 +481,8 @@ class ItemSave {
 
 	public function save_item($subitemFlag=false){
 		Log::info("@:: ItemSave::save_item");
+		$async_workers_enable = Config::get('arc.async_workers_enable', 0);
+		$crud_lock = Config::get('arc.CRUD_LOCK', 0);
 
 		/* @var $idata ItemMetadataAccess  */
 		$idata = $this->idata;
@@ -461,16 +491,14 @@ class ItemSave {
 		//return $this->item_id;
 		$idata = PUtil::changeRelation($idata,2);
 
+
 		if (! empty($this->cd)){
 			Log::info("MASS IMPORT");
 			//MAZIKO IMPORT
 			return $this->mass_import();
 		}
 
- 		//$rlock = new GRuleEngineLock();
- 		//$rlock->lock();
-
-		if (! empty($this->item_id) && ! empty($this->submit_id)){
+		if (!empty($this->item_id)){
 			$item_id = $this->item_id;
 			Log::info("OLD ITEM: $item_id");
 			Log::info("@:: LOAD INIT GRAPH (1)  UPDATE OLD RECORD");
@@ -489,9 +517,18 @@ class ItemSave {
 				$ref_items[]  = $eiv->refItem();
 			}
 			//$g2 = GGraphIO::loadNodeSubGraph($item_id);
-			$this->rule_context = ItemSave::rule_engine($g0,$item_id,$ref_items,$subitemFlag);
 
-			//$rlock->relase();
+			// early submits release during development, in case rule engine faults
+			if(!$crud_lock){
+				PDao::update_submits_status($this->submit_id, $item_id, SubmitsStatus::$finished);
+			}
+
+			$this->rule_context = ItemSave::rule_engine($g0, $item_id, $ref_items, $subitemFlag, $this->rlock, $this->submit_id);
+
+			if (!$async_workers_enable) {
+				PDao::update_submits_status($this->submit_id, $item_id, SubmitsStatus::$finished);
+			}
+
 			return $this->item_id;
 		}
 
@@ -534,10 +571,21 @@ class ItemSave {
 			//$g0 = GGraphIO::loadNodeSubGraph($item_id);
 			$g0 = GGraphIO::loadNodeNeighbourhood($item_id,null,null,'create');
 		}
-		$this->rule_context = ItemSave::rule_engine($g0,$item_id,$ref_items,$subitemFlag); //CREATE NEW NO REFS
 
+		// early update of final_item_id, useful for edit blocking of newly created item
+		PDao::update_submits_final_item_id($this->submit_id, $item_id);
 
-		//$rlock->release();
+		// early submits release during development, in case rule engine faults
+		if(!$crud_lock){
+			PDao::update_submits_status($this->submit_id, $item_id, SubmitsStatus::$finished);
+		}
+
+		$this->rule_context = ItemSave::rule_engine($g0, $item_id, $ref_items, $subitemFlag, $this->rlock, $this->submit_id); //CREATE NEW NO REFS
+
+		if (!$async_workers_enable) {
+			PDao::update_submits_status($this->submit_id, $item_id, SubmitsStatus::$finished);
+		}
+
 		return $item_id;
 
 	}
@@ -599,9 +647,25 @@ class ItemSave {
 			$out .= '<p><a href="/archive/recent?s=error">[errors list]</a></p>';
 		}
 
-
 		ItemSave::rule_engine($g0,$item_id,$ref_items);
 
+		if (Config::get('arc.ENABLE_SOLR',1)>0) {
+			Log::info("SOLR TRY DELETE ITEM ".$item_id);
+			try {
+				$client = new Solarium\Client(array('endpoint' => PUtil::getSolrConfigEndPoints('opac')));
+				$update = $client->createUpdate();
+				//$update->addDeleteQuery('id:'.$item_id);
+				$update->addDeleteById($item_id);
+				$update->addCommit();
+				$result = $client->update($update);
+				Log::info("SOLR DELETE ITEM ".$item_id);
+				Log::info('SOLR Query status: ' . $result->getStatus());
+				Log::info('SOLR Query time: ' . $result->getQueryTime());
+			} catch (Exception $e) {
+				Log::info("SOLR DELETE ITEM ".$item_id." FAILED " . $e->getMessage());
+				Log::info($e);
+			}
+		}
 
 		return $out;
 	}

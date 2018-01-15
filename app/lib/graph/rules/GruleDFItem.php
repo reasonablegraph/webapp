@@ -1,5 +1,5 @@
 <?php
-class GRuleDFItem extends AbstractGruleProcessVertice implements GRule {
+class GRuleDFItem extends AbstractGruleProcessVertice {
 
 	/**
 	 *
@@ -18,6 +18,22 @@ class GRuleDFItem extends AbstractGruleProcessVertice implements GRule {
 		$context = $this->context;
 		/* @var $graph GGraph */
 		$graph = $context->graph();
+
+
+		//XRISI MONO GIA ADD DIGITAL-ITEM MESA APO MANIFESTATION
+		$tmpe=$v->getFirstEdge(GDirection::IN,'ea:manif:digital-item');
+		if (!empty($tmpe)){
+
+			$vf=$tmpe->getVertexFrom();
+			//($v1UrnStr, $v2UrnStr, $element, $derivative = true ,$deps = null,$label=null);
+			$graph->addEdge($v->urnStr(),$vf->urnStr(),'ea:artifact-of:',false);
+
+			$graph->removeEdge($tmpe->vkey(),true);
+		}
+
+
+		//'ea:manif:digital-item'
+		//	$this->inferenceVA_THEN_AV('ea:artifact-of:', 'reverse:ea:artifact-of:');
 
 		$r1 = $this->inferenceVAB_THEN_VB ( 'ea:artifact-of:', 'ea:work:', 'ea:artifact-of:' );
 		$r2 = $this->inferenceVAB_THEN_VB ( 'ea:artifact-of:', 'inferred:ea:work:', 'ea:artifact-of:' );
@@ -40,10 +56,10 @@ class GRuleDFItem extends AbstractGruleProcessVertice implements GRule {
 		$edges = $v->getEdges(GDirection::BOTH);
 		if (count($edges) == 0){
 			$v->addFlag('ORPHAN');
+		}else{
+			$v->removeFlag('ORPHAN');
 		}
 
 
 	}
 }
-
-?>

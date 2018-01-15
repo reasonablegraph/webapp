@@ -71,5 +71,3 @@ class GRuleLabelsFlags  extends AbstractGruleProcessVertice implements GRule {
 
 
 }
-
-?>

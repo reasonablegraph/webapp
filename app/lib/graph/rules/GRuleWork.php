@@ -126,5 +126,3 @@ class GRuleWork  extends AbstractGruleProcessVertice implements GRule {
 
 }
 
-?>
-

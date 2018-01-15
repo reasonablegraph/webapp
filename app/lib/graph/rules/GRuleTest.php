@@ -75,5 +75,3 @@ class GRuleTest extends AbstractGruleProcessVertice implements GRule {
 	}
 
 }
-
-?>

@@ -18,7 +18,11 @@ if ($r['obj_type'] == Config::get('arc.DB_OBJ_TYPE_AUTH-WORK')){
 }elseif($r['obj_type'] == Config::get('arc.DB_OBJ_TYPE_AUTH-EXPRESSION')){
 		$bg_img= 'expression.jpg';
 }elseif($r['obj_type'] == Config::get('arc.DB_OBJ_TYPE_AUTH-MANIFESTATION')){
-		$bg_img= 'manif.jpg';
+	$flags = json_decode($r['flags_json'],true);
+	if(!empty($flags) && in_array('IS:issue',$flags)){
+		$obj_type_name = tr('Issue of periodic');
+	}
+	$bg_img= 'manif.jpg';
 }elseif($r['obj_type'] == Config::get('arc.DB_OBJ_TYPE_AUTH-PERSON')){
 	$bg_img= 'person.jpg';
 }elseif($r['obj_type'] == Config::get('arc.DB_OBJ_TYPE_AUTH-FAMILY')){
@@ -27,6 +31,18 @@ if ($r['obj_type'] == Config::get('arc.DB_OBJ_TYPE_AUTH-WORK')){
 		$bg_img= 'organ.jpg';
 }elseif($r['obj_type'] == Config::get('arc.DB_OBJ_TYPE_AUTH-PLACE')){
 			$bg_img= 'map.jpg';
+}elseif($r['obj_type'] == Config::get('arc.DB_OBJ_TYPE_AUTH-CONCEPT')){
+	$flags = json_decode($r['flags_json'],true);
+	if(!empty($flags) && in_array('IS:category',$flags)){
+		$obj_type_name = tr('Category');
+	}
+	$bg_img= 'subject.jpg';
+}elseif($r['obj_type'] == Config::get('arc.DB_OBJ_TYPE_AUTH-EVENT')){
+	$flags = json_decode($r['flags_json'],true);
+	if(!empty($flags) && in_array('IS:conference',$flags)){
+		$obj_type_name = tr('Conference');
+	}
+	$bg_img= 'subject.jpg';
 }else{
 // 	$bg_img= 'document.png';
 	$bg_img= 'subject.jpg';
@@ -44,10 +60,17 @@ if ($r['obj_type'] == Config::get('arc.DB_OBJ_TYPE_AUTH-WORK')){
 
 <td style="width:100%">
 
- <?php  //echo '<pre>'; print_r($r); echo '</pre>'; ?>
+ <?php  //echo '<pre>'; print_r($r); echo '</pre>';
+$json = json_decode($r['jdata'], true);
+if(!empty($json['label'])){
+	$label= $json['label'];
+}else{
+	$label = $r['title'];
+}
+?>
 
 @if ($r['obj_type'] == 'auth-work')
-		<b><a href="{{{UrlPrefixes::$item_opac}}}{{{$r['id']}}}" class='work_link'>{{{$r['title']}}}</a></b>
+		<b><a href="{{{UrlPrefixes::$item_opac}}}{{{$r['id']}}}" class='work_link'>{{{$label}}}</a></b>
 		<!--({{{$r['id']}}})-->
 		@if ($edit_link)
 		<a href="{{{UrlPrefixes::$item_edit}}}{{{$r['id']}}}" class='work_edit'>[edit]</a>
@@ -160,7 +183,6 @@ if ($r['obj_type'] == Config::get('arc.DB_OBJ_TYPE_AUTH-WORK')){
 		@endif
 
 @elseif ($r['obj_type'] == 'auth-manifestation')
-
 	<b><a href="{{{UrlPrefixes::$item_opac}}}{{{$r['id']}}}" class='manif_link'>{{{ $r['title'] }}}</a></b>
 	<!--({{{$r['id']}}})-->
 	@if ($edit_link)
@@ -198,9 +220,23 @@ if ($r['obj_type'] == Config::get('arc.DB_OBJ_TYPE_AUTH-WORK')){
 	<br/>
 
 
+@elseif ($r['obj_type'] == 'periodic')
+	<b><a href="{{{UrlPrefixes::$item_opac}}}{{{$r['id']}}}" class="expres_link" >{{{ $r['title'] }}}</a></b>
+	<!--({{{$r['id']}}})-->
+	@if ($edit_link)
+	<a href="{{{UrlPrefixes::$item_edit}}}{{{$r['id']}}}" class='expres_edit'>[edit]</a>
+	@endif
+	<a href="{{{UrlPrefixes::$item_admin}}}{{{$r['id']}}}" class='expres_edit'>[admin]</a>
+	<a href="{{{UrlPrefixes::$item_opac}}}{{{$r['id']}}}" class='expres_edit'>[opac]</a>
+	@if (!empty($r['issues_num']))
+		<br/><b>{{tr('Issues')}}: {{$r['issues_num']}}</b>
+	@endif
+	<br/>
+
+
 @else
 
-	<b><a href="{{{UrlPrefixes::$item_opac}}}{{{$r['id']}}}"  class='other_link' >{{{ $r['title'] }}}</a></b>
+	<b><a href="{{{UrlPrefixes::$item_opac}}}{{{$r['id']}}}"  class='other_link' >{{{$label}}}</a></b>
 	<!--({{{$r['id']}}})-->
 	@if ($edit_link)
 	<a href="{{{UrlPrefixes::$item_edit}}}{{{$r['id']}}}" class='other_link'>[edit]</a>

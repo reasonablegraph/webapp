@@ -31,5 +31,3 @@ class GRuleLogGraph  extends AbstractBaseRule implements  GRule {
 
 
 
-
-?>

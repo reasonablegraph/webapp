@@ -37,6 +37,12 @@ class GRuleActor  extends AbstractGruleProcessVertice implements GRule {
 			$v->addFlag('HAS:actor');
 			$v->addFlag('IS:actor');
 
+			if (!empty($v->getVertices(GDirection::IN,'ea:manif:Publisher_Name'))){
+				$v->addFlag('IS:publisher');
+			}else{
+				$v->removeFlag('IS:publisher');
+			}
+
 			$p_numeration = $v->getPropertyValue('ea:auth:Person_Numeration');
 			$p_fuller_name = $v->getPropertyValue('ea:auth:Person_FullerName');
 			$p_titles_associated  = $v->getProperties('ea:auth:Person_TitlesAssociated');
@@ -76,12 +82,31 @@ class GRuleActor  extends AbstractGruleProcessVertice implements GRule {
 			//$title_punct = ArcTemplateEngine::renderLineHandlebars($template,$var_templ);
 			$title_punct = ArcTemplateEngine::renderLine($template,$var_templ);
 
+
+			//Dryll - Flags is lawyer
+			$type_of_person = $v->getPropertyValue('ea:person:type_of_person');
+			if (!empty($type_of_person)){
+				//$this->opac1['type_of_person'] = $type_of_person;
+				if($type_of_person == 1){
+					$v->addFlag('IS:lawyer');
+				}
+			}else{
+					$v->removeFlag('IS:lawyer');
+				}
+			//**
+
 		}elseif ($obj_type == 'auth-organization'){
 
 
 			$v->addFlag('HAS:auth-organization');
 			$v->addFlag('HAS:actor');
 			$v->addFlag('IS:actor');
+
+			if (!empty($v->getVertices(GDirection::IN,'ea:manif:Publisher_Name'))){
+				$v->addFlag('IS:publisher');
+			}else{
+				$v->removeFlag('IS:publisher');
+			}
 
 			$o_subdivision = $v->getProperties('ea:auth:Organization_Subdivision');
 			$o_addition = $v->getProperties('ea:auth:Organization_Addition');
@@ -155,6 +180,12 @@ class GRuleActor  extends AbstractGruleProcessVertice implements GRule {
 			$v->addFlag('HAS:actor');
 			$v->addFlag('IS:actor');
 
+			if (!empty($v->getVertices(GDirection::IN,'ea:manif:Publisher_Name'))){
+				$v->addFlag('IS:publisher');
+			}else{
+				$v->removeFlag('IS:publisher');
+			}
+
 			$f_type = $v->getPropertyValue('ea:auth:Family_Type');
 			$f_titles_place = $v->getProperties('ea:auth:Family_Titles_Place');
 			$f_datesAssociated  = $v->getPropertyValue('ea:auth:Person_DatesAssociated');
@@ -204,5 +235,3 @@ class GRuleActor  extends AbstractGruleProcessVertice implements GRule {
 
 
 }
-
-?>

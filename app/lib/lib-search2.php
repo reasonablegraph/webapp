@@ -25,6 +25,8 @@ class SearchLib2 {
 			$prev_offset = 0;
 		}
 
+		$ot = $params['ot'];
+
 		$params['qt']=1;
 		$params['limit']=$limit;
 		list ( $search_string, $order, $offset, $limit, $rows ) =SearchLib2::search_item_m($params);
@@ -95,6 +97,8 @@ class SearchLib2 {
 		$order = $params['r'];
 		$offset = $params['o'];
 		$limit=$params['limit'];
+
+		$ot = $params['ot'];
 
 		$search_string = $params['ss'];
 		$method = $params['method'];
@@ -306,6 +310,7 @@ class SearchLib2 {
 // 		WHERE  obj_type not in ('bitstream') AND q @@ i.fts
 // 		ORDER BY rank DESC  LIMIT 60
 
+
 		if ($result_query) {
 			if (! $empty_query) {
 				Log::info("#Q1 RESULT + NOT EMPTY");
@@ -318,6 +323,17 @@ class SearchLib2 {
 				$SQL .= sprintf(" AND %s ", $status_c);
 				$SQL .= $FILTER_SQL;
 				$SQL .= " AND q @@ i.fts2  ";
+
+				if (!empty($ot)){
+					$SQL .= " AND (i.obj_type = '$ot') ";
+				}else{
+					//restric res obj_type
+					$default_item_opac_search = Config::get('arc.item_opac_search',array('auth-work','auth-expression','auth-manifestation','auth-person','auth-organization','auth-family','auth-place','auth-concept','auth-event','auth-genre','auth-object','auth-object_collection','subject-chain','auth-general'));
+					$obj_type_c = implode("' OR obj_type ='", $default_item_opac_search );
+					$SQL .= " AND (i.obj_type = '$obj_type_c') ";
+				}
+
+
 				$SQL .= "ORDER BY  " . $ORDER_SQL . " limit " . $limit . "  offset ? ";
 
 			} else {
@@ -346,6 +362,17 @@ class SearchLib2 {
 				$SQL .= sprintf(" AND %s ", $status_c);
 				$SQL .= $FILTER_SQL;
 				$SQL .= " AND q @@ i.fts2  ";
+
+				if (!empty($ot)){
+					$SQL .= " AND (i.obj_type = '$ot') ";
+				}else{
+					//restric res obj_type
+					$default_item_opac_search = Config::get('arc.item_opac_search',array('auth-work','auth-expression','auth-manifestation','auth-person','auth-organization','auth-family','auth-place','auth-concept','auth-event','auth-genre','auth-object','auth-object_collection','subject-chain','auth-general'));
+					$obj_type_c = implode("' OR obj_type ='", $default_item_opac_search );
+					$SQL .= " AND (i.obj_type = '$obj_type_c') ";
+				}
+
+
 				$SQL .= 'GROUP BY 1';
 			} else {
 				Log::info("#Q4");

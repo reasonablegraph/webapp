@@ -48,5 +48,3 @@ class GRuleDFItem2 extends AbstractGruleProcessVertice implements GRule {
 
 
 }
-
-?>

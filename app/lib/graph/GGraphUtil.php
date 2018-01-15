@@ -3,7 +3,7 @@
 class GGraphUtil {
 
 
-
+	const DUMPGRAPHVIZ = 'dumpGraphviz';
 
 
 	public static function removeZeroVertices($graph){
@@ -73,7 +73,7 @@ class GGraphUtil {
 
 		foreach ($updatesTracker as $update){
 			$method = isset($update['method'])? $update['method'] : 'update';
-			/*@var $p GPropertyO */
+			/* @var $p GPropertyO */
 			$p = $update['prop'];
 			$id = $p->id();
 			if (empty($id)){ continue; }
@@ -85,8 +85,8 @@ class GGraphUtil {
 // 					$inferred = $row['inferred'];
 // 					if ($inferred ){
 						Log::info('saveUpdatesTracker: DELETE PROP: ' . $id . ' : '  .  $row['item_id'] .  ' : ' .  $row['element'] . ' : ' . $row['text_value'] . ' : ' . $row['ref_item'] . ' : ' . ($row['inferred']? 'INF' : 'NON'));
-						if ($p->element() != $row['element']){ throw new Exception("DELETE PROP ELEMENT NOT MATCH: " . $p->element() . ' <> ' . row['element']);};
-						if ($p->refItem() != $row['ref_item']){ throw new Exception("DELETE PROP ELEMENT NOT MATCH: " . $p->refItem() . ' <> ' . row['ref_item']);};
+						if ($p->element() != $row['element']){ throw new Exception("DELETE PROP ELEMENT NOT MATCH: " . $p->element() . ' <> ' . $row['element'] . ' mvid: ' . $id);};
+						if ($p->refItem() != $row['ref_item']){ throw new Exception("DELETE PROP ELEMENT NOT MATCH: " . $p->refItem() . ' <> ' . $row['ref_item'] . ' mvid: ' . $id);};
 						$stDelete->bindParam(1, $id);
 						$stDelete->execute();
 // 					} else {
@@ -111,7 +111,6 @@ class GGraphUtil {
 		}
 
 
-
 	}
 
 
@@ -120,15 +119,8 @@ class GGraphUtil {
 	 * @param GGraphO $graph
 	 */
 	public static function saveVertexUpdatesTracker($graph){
-		//$con = dbconnect();
-		//Log::info("saveVertexUpdatesTracker");
-			$updatesTracker = $graph->_getVerticesUpdatesTracker();
-		//Log::info(print_r($updatesTracker,true));
+		$updatesTracker = $graph->_getVerticesUpdatesTracker();
 		if (! empty($updatesTracker)){
-// 					$SQL = sprintf("DELETE FROM dsd.metadatavalue2 WHERE (item_id,ref_item) in ?");
-// 					$stDelete1= $con->prepare($SQL);
-// 					$SQL = sprintf("DELETE FROM dsd.item2 WHERE item_id = ?");
-// 					$stDelete2= $con->prepare($SQL);
 			foreach ($updatesTracker as $id => $update){
 				$method = isset($update['method'])? $update['method'] : 'update';
 				//Log::info("saveVertexUpdatesTracker: ". $id . " METHOD: " . $method);
@@ -141,8 +133,6 @@ class GGraphUtil {
 				}
 			}
 		}
-
-
 	}
 
 // 	public static function saveUpdatesTracker($vertices){
@@ -221,7 +211,7 @@ class GGraphUtil {
 		$label = GRuleUtil::getLabel($v2);
 		//$label = $edge->label();
 		$edge->setLabel($label);
-		$data = json_encode(ARRAY('data'=>ARRAY('ref_label'=>$label)));
+		$data = json_encode(ARRAY('data'=>ARRAY('ref_label'=>$label)),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
 
 		GGraphUtil::saveEdgeRaw($id1,$el,$id2,$isInfered,$deps,$label,$data);
 
@@ -432,7 +422,8 @@ class GGraphUtil {
 /**
  * @param GGraph $graph
  */
-	public static function dumpGraphviz($graph, $file = null, $inferred_flag = true, $neighbourhood_flag = false, $replaceFileFlag = true, $glabel = null, $graph_dump_file = null){
+	public static function dumpGraphviz(GGraph $graph, $file = null, $inferred_flag = true, $neighbourhood_flag = false, $replaceFileFlag = true, $glabel = null, $graph_dump_file = null, $dump_only_marked = false) {
+	  PUtil::logGreen("GGraphUtil.dumpGraphviz");
 		if (is_string($neighbourhood_flag)) {
 			if ($neighbourhood_flag == 'false') {
 				$neighbourhood_flag = false;
@@ -440,6 +431,10 @@ class GGraphUtil {
 				$neighbourhood_flag = true;
 			}
 		}
+
+//		Log::info("2.neighbourhood: " . $neighbourhood_flag  . ' ::: ' . ($neighbourhood_flag ? 'TRUE' : 'FALSE'));
+//		Log::info("2.inferred     : " . $inferred_flag . ' ::: ' . ($inferred_flag ? 'TRUE' : 'FALSE'));
+
 
 		$neighborhood_get = function($neighbourhood,$all_ids, $name='def'){
 
@@ -478,8 +473,9 @@ class GGraphUtil {
 		$norm_value = function ($str) {
 			$str = str_replace('|', ' ', $str);
 			$len = mb_strlen($str);
-			if ($len > 38) {
-				$str = substr($str, 0, 38);
+			$max_len = 58;
+			if ($len > $max_len) {
+				$str = substr($str, 0, $max_len);
 				$str .= '...';
 			}
 			return htmlspecialchars($str);
@@ -506,12 +502,16 @@ class GGraphUtil {
 		$i = 0;
 		foreach ($memV as $v) {
 
+			if ($dump_only_marked && ! $v->hasAttribute(self::DUMPGRAPHVIZ)) {
+				continue;
+			}
+
 			$color = 'white';
 
 			if (!$v->isOrphan()) {
 				$i++;
 				$id = $v->urn()->toString();
-				$read_only = $v->getTmpAttribute('_READONLY');
+				$read_only =  $v->isReadOnly(); //$v->getTmpAttribute('_READONLY');
 				//$label = sprintf('%s pc: %s',$v->id(),count($v->getAllProperties()));
 				$pc = count($v->getAllProperties());
 				//if ($pc > 0){
@@ -521,17 +521,52 @@ class GGraphUtil {
 				$pc = 0;
 				//$label = sprintf('%s pc: %s',$v->id(),count($v->getAllProperties()));
 				$label = '<table  border="0" >';
-				$label .= sprintf('<tr><td align="left">urn:</td><td align="left">%s</td></tr>', $v->urnStr());
+				if ($dump_only_marked && $v->getAttribute('GRAPHVIZ_ROOT')){
+          $label .= sprintf('<tr><td align="left">urn:</td><td align="left" bgcolor="red">%s</td></tr>', $v->urnStr());
+        } else {
+          $label .= sprintf('<tr><td align="left">urn:</td><td align="left">%s</td></tr>', $v->urnStr());
+        }
+        if ($v->hasAttribute(self::DUMPGRAPHVIZ) && ! $v->hasAttribute('GRAPHVIZ_ROOT')){
+
+          $distance = $v->getAttribute(self::DUMPGRAPHVIZ);
+          if ($distance  == "1"){
+            $distance = '[1]';
+          }
+          $label .= sprintf('<tr><td align="left">traverse:</td><td align="left">distance: %s  &#160;&#160; cardinal: %s  </td></tr>',$distance,$v->getAttribute('GRAPHVIZ_TO') );
+
+        }
 
 				$v_title = $v->getPropertyValue("dc:title:");
-				$v_label = GRuleUtil::getLabel($v);
-				if (empty($v_title)) {
-					$label .= sprintf('<tr><td align="left">label:</td><td align="left">%s</td></tr>', $norm_value($v_label));
-				} else {
-					$label .= sprintf('<tr><td align="left">title:</td><td align="left">%s</td></tr>', $norm_value($v_title));
-					if ($v_title != $v_label) {
-						$label .= sprintf('<tr><td align="left">label:</td><td align="left">%s</td></tr>', $norm_value($v_label));
-					}
+				$v_label = $v->getAttribute('label');
+				$v_key_label = 'label';
+				if (empty($label)) {
+					$v_label = $v->getTmpAttribute('label');
+					$v_key_label = 'label2';
+				}
+				if (empty($v_label)){
+					$v_label = $v->getPropertyValue("Title_punc");
+					$v_key_label = 'title punc';
+				}
+				if (empty($v_label)){
+					$v_label = $v->getPropertyValue("dc:title:");
+					$v_key_label = 'title:';
+				}
+				if (empty($v_label)) {
+					$v_label = GRuleUtil::getLabel($v);
+					$v_key_label = 'label3';
+				}
+//				if (empty($v_title)) {
+//					$label .= sprintf('<tr><td align="left">label:</td><td align="left">%s</td></tr>', $norm_value($v_label));
+//				} else {
+//					$label .= sprintf('<tr><td align="left">title:</td><td align="left">%s</td></tr>', $norm_value($v_title));
+//					if ($v_title !=  $v_label) {
+//						$label .= sprintf('<tr><td align="left">label:</td><td align="left">%s</td></tr>', $norm_value($v_label));
+//					}
+//				}
+				$label .= sprintf('<tr><td align="left">%s:</td><td align="left">%s</td></tr>',$v_key_label, $norm_value($v_label));
+				$v_test_key1 = $v->getPropertyValue("ea:test:key1");
+				if (!empty($v_test_key1)){
+					$label .= sprintf('<tr><td align="left">test:key1:</td><td align="left">%s</td></tr>', $norm_value($v_test_key1));
 				}
 
 				$props = $v->getAllProperties();
@@ -647,6 +682,10 @@ class GGraphUtil {
 			$v1 = $e->getVertexFrom();
 			$v2 = $e->getVertexTO();
 
+			if ($dump_only_marked && ($v1->getAttribute(self::DUMPGRAPHVIZ) != true || $v2->getAttribute(self::DUMPGRAPHVIZ) != true)) {
+				continue;
+			}
+
 
 			$pc = count($e->getAllProperties());
 			if ($pc > 0) {
@@ -681,11 +720,12 @@ class GGraphUtil {
 						$def = $neighbourhood['def'];
 						$vid = $v->persistenceId();
 						if ((!$intFlag) || $vid == $neighbourhood_flag) {
-							$nlabel = $vid;
+							//$nlabel = $vid;
 							$arc_color = 'green';
 							foreach ($def as $n) {
 								$vn = $graph->getVertex(GURN::createOLDWithId($n));
-								if (!empty($vn)) {
+								if (! empty($vn)) {
+									$nlabel = $vid . ' → ' . $vn->persistenceId();
 									printf('"%s" -> "%s" [ label = "%s",color="%s"];', $v->urnStr(), $vn->urnStr(), $nlabel, $arc_color);
 								}
 							}
@@ -718,7 +758,6 @@ class GGraphUtil {
 
 		if (!empty($graph_dump_file)) {
 			file_put_contents($graph_dump_file, GGraphUtil::dump1($graph, false, $glabel));
-
 		}
 		//GGraphUtil::dump1($graph,false);
 	}
@@ -800,6 +839,12 @@ public static function dumpEdges($graph,$title=null){
 			}
 			$out .= ") ";
 
+
+			$testKey = $v->getPropertyValue('ea:test:key1');
+			if (!empty($testKey)){
+				$out .= (" tk: " . $testKey);
+			}
+
 			$out .="\n";
 		}
 
@@ -827,7 +872,35 @@ public static function dumpEdges($graph,$title=null){
  			$out .="\n";
 		}
 
-		if ($dumpToLog){
+
+
+		$out .="\n";
+		$out .="PROPERTIES\n";
+		//Log::info('PROPERTIES:');
+		foreach ($memV as $k=>$v) {
+			$all_props = $v->getAllProperties();
+			foreach ($all_props as $props){
+				foreach ($props as $p){
+					/* @var $p GPropertyO  */
+
+					$item_id = method_exists($p,'itemId') ? $p->itemId() : null;
+					$element = method_exists($p,'element') ? $p->element() : null;
+					$text_val = $p->value();
+					$refItem = method_exists($p,'refItem') ? $p->refItem() : null;//$refItem = $p->refItem();
+					$level = method_exists($p,'level') ? $p->level() : null;//$level = $p->level();
+					$p_treeId = method_exists($p,'treeId') ? $p->treeId() : null;//$p_treeId=$p->treeId();
+					$p_parent = method_exists($p,'parent') ? $p->parent() : null;//$p_parent=$p->parent();
+					$out.=sprintf("%7d|%2d|%3d|%3d|%-36s|%7d|%s\n",$item_id,$level,$p_treeId,$p_parent,$element,$refItem,$text_val);
+					//$out.=($item_id . " | " . $level . " | " . $element . " | " . $refItem . " | " . $text_val . "|\n");
+				}
+			}
+			$out .="\n";
+		}
+		$out .="\n";
+
+
+
+			if ($dumpToLog){
 			Log::info($out);
 		}
 
@@ -943,6 +1016,9 @@ public static function dumpEdges($graph,$title=null){
 			}
 		}
 
+		$pid = getmypid();
+		$reset_id = PDao::insert_long_run($pid);
+
 		$con = dbconnect();
 		$SQL = "DELETE FROM dsd.metadatavalue2 WHERE inferred";
 		$stmt = $con->prepare($SQL);
@@ -961,6 +1037,9 @@ public static function dumpEdges($graph,$title=null){
 			$elements = $context->getEditProps($urnStr);
 			GGraphUtil::saveProperties($v, $elements);
 		}
+
+		PDao::update_long_run($reset_id,2);
+
 		return $context;
 	}
 

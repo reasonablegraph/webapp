@@ -54,7 +54,7 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 		$description = $v->getPropertyValue('ea:item:description');
 		$info = $v->getPropertyValue('ea:item:info');
 		$size = $v->getPropertyValue('ea:item:size');
-		$page = $v->getPropertyValue('ea:item:page');
+		$page = $v-> getPropertyValue('ea:item:page');
 		$part = $v->getPropertyValue('ea:item:partNumber');
 // 		$type = $v->getProperty('ea:item:type');
 
@@ -132,7 +132,10 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 		$this->opac1['page'] = $page;
 		$this->opac1['part'] = $part;
 
-		$this->opac1['thumbs'] = PDao::getThumbs($id); ///THUMBNAILS//
+// 		$this->opac1['thumbs'] = PDao::getThumbs($id); ///THUMBNAILS//
+		if (!empty(PDao::getThumbs2($id))){
+			$this->opac1['thumbs'] = PDao::getThumbs2($id);
+		}
 	}
 
 
@@ -153,6 +156,8 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 		$location = $v->getProperty('ea:item:location');
 		$sublocation = $v->getProperty('ea:item:sublocation');
 		$classification = $v->getProperty('ea:item:Classification');
+		$office_code = $v->getPropertyValue('ea:item:office_code');
+		$owner = $v->getPropertyValue('ea:item:ownerItem');
 
 		if (!empty($classification)){
 			$classification = $classification->pnctn();
@@ -192,6 +197,8 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 		$this->opac1['location'] = $location;
 		$this->opac1['sublocation'] = $sublocation;
 		$this->opac1['classification'] = $classification;
+		$this->opac1['office_code'] = $office_code;
+		$this->opac1['owner'] = $owner;
 
 		$this->label = $label;
 		$this->title = $label;
@@ -218,7 +225,10 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 		$v->updatePropertyValue('dc:title:', null, $label);
 		$v->updatePropertyValue('ea:label:', null, $title);
 
-		$this->opac1['thumbs'] = PDao::getThumbs($id); ///THUMBNAILS//
+// 		$this->opac1['thumbs'] = PDao::getThumbs($id); ///THUMBNAILS//
+		if (!empty(PDao::getThumbs2($id))){
+			$this->opac1['thumbs'] = PDao::getThumbs2($id);
+		}
 
 	}
 
@@ -226,30 +236,225 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 	/**
 	 * @param GVertex $v
 	 */
-	private function processSubjectEntities( $v){
+	private function processSubjectEntities($v){
 		$context = $this->context;
 		$id = $v->persistenceId();
 		$this->opac1['id'] = $id;
-		$this->opac1['thumbs'] = PDao::getThumbs($id); ///THUMBNAILS//
+// 		$this->opac1['thumbs'] = PDao::getThumbs($id); ///THUMBNAILS//
+		$thumb = PDao::getThumbs2($id);
+		if (!empty($thumb)){
+			$this->opac1['thumbs'] = $thumb;
+		}
 
-		if (!empty($v->getVertices(GDirection::IN,'ea:subj:'))){
-			$this->opac1['as_subj'] = count($v->getVertices(GDirection::IN,'ea:subj:'));
-			if (!empty($v->getVertices(GDirection::IN,'ea:inferred-chain-link:'))){
-				$chain_link = $v->getVertices(GDirection::IN,'ea:inferred-chain-link:');
-				foreach ($chain_link as $cl){
-					if (!empty($cl->getVertices(GDirection::IN,'ea:subj:'))){
-						$this->opac1['as_subj'] += count($cl->getVertices(GDirection::IN,'ea:subj:'));
-					}
+
+
+		$as_subj_manif = 0;
+
+		$subjects = $v->getVertices(GDirection::IN,'ea:subj:');
+		if (!empty($subjects)){
+			$direct_manif = 0;
+			$work_manif = 0;
+			$expres_manif = 0;
+			foreach ($subjects as $entity) {
+				if ($entity->getObjectType() == 'auth-manifestation') {
+					$direct_manif =  ++$direct_manif;
+				}
+				$workOf = $entity->getVertices(GDirection::OUT,'ea:workOf:');
+				if( !empty($workOf) ){
+					$work_manif = $work_manif + count($workOf);
+				}
+
+				$inferred_work = $entity->getVertices(GDirection::IN,'inferred:ea:work:');
+				if( !empty($inferred_work) ){
+					$expres_manif = $expres_manif + count($inferred_work);
 				}
 			}
-		}else	if (!empty($v->getVertices(GDirection::IN,'ea:inferred-chain-link:'))){
-			$chain_link = $v->getVertices(GDirection::IN,'ea:inferred-chain-link:');
+			$as_subj_manif = $direct_manif + $work_manif + $expres_manif;
+		}
+
+
+		$chain_link = $v->getVertices(GDirection::IN,'ea:inferred-chain-link:');
+		if (!empty($chain_link)){
 			foreach ($chain_link as $cl){
-				if (!empty($cl->getVertices(GDirection::IN,'ea:subj:'))){
-					$this->opac1['as_subj'] = count($cl->getVertices(GDirection::IN,'ea:subj:'));
+				$entities = $cl->getVertices(GDirection::IN,'ea:subj:');
+				if (!empty($entities)){
+					$entity_as_subj_manif = 0;
+					foreach ($entities as $entity) {
+						$direct_manif = 0;
+						$work_manif = 0;
+						$expres_manif = 0;
+						if ($entity->getObjectType() == 'auth-manifestation') {
+							$direct_manif = ++$direct_manif;
+						}
+						$work_manifs = $entity->getVertices(GDirection::OUT,'ea:workOf:');
+						if( !empty($work_manifs) ){
+							$work_manif =  count($work_manifs);
+						}
+						$expres_manifs = $entity->getVertices(GDirection::IN,'inferred:ea:work:');
+						if( !empty($expres_manifs) ){
+							$expres_manif = count($expres_manifs);
+						};
+						$entity_as_subj_manif = $entity_as_subj_manif + $direct_manif + $work_manif + $expres_manif;
+					}
+					$as_subj_manif = $as_subj_manif + $entity_as_subj_manif;
 				}
 			}
 		}
+
+		if (!empty($as_subj_manif)){
+			$this->opac1['as_subj_manif'] = $as_subj_manif;
+		}
+
+		### Conference ###
+		$form_type = $v->getPropertyValue('ea:form-type:');
+		if ($form_type=='conference'){
+			$v->addFlag('IS:conference');
+		}
+
+		### Category/Levels ###
+		$form_type = $v->getPropertyValue('ea:form-type:');
+		if ($form_type=='category'){
+			$v->addFlag('IS:category');
+
+			$parent  = $v->getFirstVertex(GDirection::OUT,'ea:concept:category_parent');
+			$child = $v->getFirstVertex(GDirection::IN,'ea:concept:category_parent');
+
+			if (!empty($parent)){
+				$v->addFlag('LEVEL:2');
+				$v->removeFlag('LEVEL:1');
+				$v->removeFlag('HAS:subcategory');
+				$parent_label = GRuleUtil::getLabel($parent);
+				$dc_title = $v->getPropertyValue('dc:title:');
+				$var_templ = array(
+						'parent_label' => $parent_label,
+						'dc_title' => $dc_title,
+				);
+				$template = Config::get('arc_display_template.subcategory_label');
+				$label = ArcTemplateEngine::renderLine($template,$var_templ);
+				$this->label =  $label;
+			}elseif(!empty($child)){
+				$v->addFlag('HAS:subcategory');
+				$v->addFlag('LEVEL:1');
+				$v->removeFlag('LEVEL:2');
+			}else{
+				$v->addFlag('LEVEL:1');
+				$v->removeFlag('LEVEL:2');
+				$v->removeFlag('HAS:subcategory');
+			}
+
+		}
+		############
+
+	}
+
+
+
+	/**
+	 * @param GVertex $v
+	 */
+	private function processPeriodic( $v){
+
+		$id = $v->persistenceId();
+		$this->opac1['id'] = $id;
+		if (!empty(PDao::getThumbs2($id))){
+			$this->opac1['thumbs'] = PDao::getThumbs2($id);
+		}
+
+		$title = $v->getPropertyValue('dc:title:');
+		$title_remainder = $v->getPropertyValue('ea:periodic:title_remainder');
+
+		$var_periodic_templ = array(
+				'title' => $title,
+				'title_remainder' => $title_remainder,
+		);
+
+		$template = Config::get('arc_display_template.periodic_title');
+		$label = ArcTemplateEngine::renderLine($template,$var_periodic_templ);
+
+		$this->label = $label;
+		$this->title = $label;
+
+
+		$ppublishers = $v->getVertices(GDirection::OUT, 'ea:periodic:publisher_name');
+		$publishers = array();
+
+		if (!empty($ppublishers)){
+			foreach ($ppublishers as $pub){
+				//$value_array['name'] = = GRuleUtil::getLabel($publisher);
+				$value_array['name'] = $pub->getPropertyValue('dc:title:');
+				$value_array['id'] = $pub->persistenceId();
+				$publishers[]= $value_array;
+			}
+		}
+		$this->opac1['publishers'] = $publishers;
+
+		$this->opac1['time_range'] = $v->getPropertyValue('ea:periodic:issues_time_range');
+
+		$ditem_loc = ARRAY();
+		//$ditem_loc[] = $v-> getPropertyValue('ea:periodic:location_in_library');
+		$ditem_loc_presc = $v->getProperties('ea:periodic:location_in_library');
+		if(!empty($ditem_loc_presc)){
+			foreach ($ditem_loc_presc  as $ditem_loc_p){
+				$ditem_loc[] =  $ditem_loc_p->value();
+			}
+		}
+
+		//Issues number
+		$issues= $v->getVertices(GDirection::OUT,'ea:hasIssue:');
+		if (!empty($issues)){
+			$this->opac1['issues_num'] = count($issues);
+			foreach ($issues as $issue){
+				$ditems =$issue->getVertices(GDirection::BOTH,'ea:artifact-of:');
+				foreach ($ditems as $ditem){
+					$item_obj_type = $ditem->getPropertyValue('ea:obj-type:');
+					if ($item_obj_type == 'physical-item'){
+						$ditem_sublocation = $ditem->getProperty('ea:item:sublocation');
+						if (!empty($ditem_sublocation)){
+							$tmp = $ditem_sublocation->value();
+							$ditem_sublocation = ($tmp != 'undefined') ?  $ditem_sublocation->prps('selected_value') : null;
+							$ditem_loc[] = $ditem_sublocation;
+						}
+					}
+				}
+			}
+		}
+
+		$this->opac1['location'] = array_unique($ditem_loc);
+
+
+		//Dryll - Flags is old/new/corrected record , lawyer emails
+		$completion_level = $v->getPropertyValue('ea:control:completion_level');
+		if (isset($completion_level)){
+			$this->opac1['completion_level'] = $completion_level;
+			if($completion_level == 0){
+				$v->addFlag('IS:new');
+				$v->removeFlag('IS:old');
+				$v->removeFlag('IS:corrected');
+			}elseif($completion_level == 1){
+				$v->addFlag('IS:old');
+				$v->removeFlag('IS:new');
+				$v->removeFlag('IS:corrected');
+			}elseif($completion_level == 2){
+				$v->addFlag('IS:corrected');
+				$v->removeFlag('IS:old');
+				$v->removeFlag('IS:new');
+			}else{
+				$v->removeFlag('IS:old');
+				$v->removeFlag('IS:new');
+				$v->removeFlag('IS:corrected');
+			}
+		}
+
+		$related_lawyers = $v->getVertices(GDirection::OUT, 'ea:periodic:related_lawyers');
+		if (!empty($related_lawyers)){
+			foreach ($related_lawyers as  $lawyer){
+				$email = $lawyer->getPropertyValue('ea:auth:Address_Mail');
+				if(!empty($email)){
+					$this->opac2['lawyers_emails'][] = $email;
+				}
+			}
+		}
+		//**
 
 	}
 
@@ -259,12 +464,20 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 	 */
 	private function processLemma( $v){
 
-		$title = $v->getPropertyValue('ea:lemma:title_in_english');
-		$this->title = $title;
+		$title_in_english = $v->getPropertyValue('ea:lemma:title_in_english');
+		if(!empty($title_in_english)){
+			$this->title = $title_in_english;
+			$this->label = $title_in_english;
+		}else{
+			$this->title = $v->getPropertyValue('dc:title:');
+		}
 
 		$id = $v->persistenceId();
 		$this->opac1['id'] = $id;
-		$this->opac1['thumbs'] = PDao::getThumbs($id); ///THUMBNAILS//
+// 		$this->opac1['thumbs'] = PDao::getThumbs($id); ///THUMBNAILS//
+		if (!empty(PDao::getThumbs2($id))){
+			$this->opac1['thumbs'] = PDao::getThumbs2($id);
+		}
 
 		//Citations
 		$lemma_manif = $v-> getVertices(GDirection::OUT,'ea:lemma:manifestation');
@@ -378,10 +591,15 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 
 		$id = $v->persistenceId();
 		$this->opac1['id'] = $id;
+		$parent_category = $v->getFirstVertex(GDirection::OUT,'ea:category:parent');
 
-		if (!empty($v-> getFirstVertex(GDirection::OUT,'ea:category:parent'))){
+		$v->addFlag('IS:category');
 
-			$parent_cat_label = GRuleUtil::getLabel( $v->getFirstVertex(GDirection::OUT,'ea:category:parent') );
+		if (!empty($parent_category)){
+			$v->addFlag('LEVEL:2');
+			$v->removeFlag('LEVEL:1');
+
+			$parent_cat_label = GRuleUtil::getLabel($parent_category);
 			$dc_title = $v->getPropertyValue('dc:title:');
 
 			$var_templ = array(
@@ -393,6 +611,9 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 			$label = ArcTemplateEngine::renderLine($template,$var_templ);
 			$this->label =  $label;
 
+		}else{
+			$v->addFlag('LEVEL:1');
+			$v->removeFlag('LEVEL:2');
 		}
 	}
 
@@ -411,17 +632,23 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 	 * @param GVertex $v
 	 */
 	private function processPlace($v){
+		//Putil::logGreen('PROC PLACE: '. $v->urnStr());
 		$context = $this->context;
-		$type = $v->getProperty('ea:auth:Place_Type');
+// 		$type = $v->getProperty('ea:auth:Place_Type');
 
-		if (!empty($type)){
-			$tmp =$type->value();
-			$type = ($tmp != 'undefined') ?  $type->prps('selected_value') : null;
-		}
+// 		if (!empty($type)){
+// 			$tmp =$type->value();
+// 			$type = ($tmp != 'undefined') ?  $type->prps('selected_value') : null;
+// 		}
+// 		$type = null;
+// 		$vtype = $v->getFirstVertex(GDirection::OUT, 'ea:auth:Place_Type');
+// 		if (!empty($vtype)){
+// 			$type = GRuleUtil::getLabel($vtype);
+// 		}
 
 		$var_templ = array(
 				'title' => $this->title,
-				'type' => $type,
+// 				'type' => $type,
 		);
 
 		$template = Config::get('arc_display_template.place_label');
@@ -433,32 +660,55 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 		$this->label = $label;
 // 		$this->title = $label;
 
-		$this->opac1['thumbs'] = PDao::getThumbs($id); ///THUMBNAILS//
-
-		if (!empty($v->getVertices(GDirection::IN,'ea:manif:Publication_Place'))){
-			$this->opac1['as_pplace'] = count($v->getVertices(GDirection::IN,'ea:manif:Publication_Place'));
+// 		$this->opac1['thumbs'] = PDao::getThumbs($id); ///THUMBNAILS//
+		$thumbs = PDao::getThumbs2($id);
+		if (!empty($thumbs)){
+			$this->opac1['thumbs'] = $thumbs;
 		}
 
-	if (!empty($v->getVertices(GDirection::IN,'ea:subj:'))){
-			$this->opac1['as_subj'] = count($v->getVertices(GDirection::IN,'ea:subj:'));
-			if (!empty($v->getVertices(GDirection::IN,'ea:inferred-chain-link:'))){
-				$chain_link = $v->getVertices(GDirection::IN,'ea:inferred-chain-link:');
-				foreach ($chain_link as $cl){
-					if (!empty($cl->getVertices(GDirection::IN,'ea:subj:'))){
-						$this->opac1['as_subj'] += count($cl->getVertices(GDirection::IN,'ea:subj:'));
+// 		$publication_places = $v->getVertices(GDirection::IN,'ea:manif:Publication_Place');
+// 		if (!empty($publication_places)){
+// 			$this->opac1['as_pplace'] = count($publication_places);
+// 		}
+		$manif_pubplaces = 0;
+		$per_pubplaces = 0;
+		$as_pubplaces = $v->getVertices(GDirection::IN,'ea:manif:Publication_Place');
+		if (!empty($as_pubplaces)){
+			$manif_pubplaces = count($as_pubplaces);
+		}
+		##################### DRYL ################################
+		$as_per_pubplaces = $v->getVertices(GDirection::IN,'ea:periodic:publication_place');
+		if (!empty($as_per_pubplaces)){
+				$per_pubplaces = count($as_per_pubplaces);
+		}
+		###########################################################
+		$this->opac1['as_pplace'] = $manif_pubplaces + $per_pubplaces;
+
+
+
+		$subjects = $v->getVertices(GDirection::IN,'ea:subj:');
+		$chain_link = $v->getVertices(GDirection::IN,'ea:inferred-chain-link:');
+		if (!empty($subjects)){
+				$this->opac1['as_subj'] = count($subjects);
+				if (!empty($chain_link )){
+					foreach ($chain_link as $cl){
+						$as_subjects = $cl->getVertices(GDirection::IN,'ea:subj:');
+						if (!empty($as_subjects)){
+							$this->opac1['as_subj'] += count($as_subjects);
+						}
+					}
+				}
+			}elseif (!empty($chain_link)){
+				foreach ($chain_link as $icl){
+					$as_subjects = $icl->getVertices(GDirection::IN,'ea:subj:');
+					if (!empty($as_subjects)){
+						$this->opac1['as_subj'] = count($as_subjects);
 					}
 				}
 			}
-		}else	if (!empty($v->getVertices(GDirection::IN,'ea:inferred-chain-link:'))){
-			$chain_link = $v->getVertices(GDirection::IN,'ea:inferred-chain-link:');
-			foreach ($chain_link as $cl){
-				if (!empty($cl->getVertices(GDirection::IN,'ea:subj:'))){
-					$this->opac1['as_subj'] = count($cl->getVertices(GDirection::IN,'ea:subj:'));
-				}
-			}
-		}
 
 		$v->updatePropertyValue('ea:label:', null, $label);
+
 
 	}
 
@@ -474,44 +724,26 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 
 		$w_part_number = $v->getPropertyValue('ea:work:Title_PartNumber');
 		$w_title_part_name = $v->getPropertyValue('ea:work:Title_PartName');
-// 		$w_form = $v->getPropertyValue('ea:work:Form');
-// 		$w_date = $v->getPropertyValue('ea:work:Date');
-// 		$w_place = $v->getPropertyValue('ea:work:Place');
-// 		$w_version = $v->getPropertyValue('ea:work:Version');
-// 		$w_language = $v->getProperty('ea:work:Language');
-// 		if (!empty($w_language)){
-// 			$tmp =$w_language->value();
-// 			$w_language = ($tmp != 'undefined') ?  $w_language->prps('selected_value') : null;
-// 		}
-
-
-// 		$contributorEdge = $v->getFirstEdge(GDirection::OUT,'');
-		$edgesOut = $v->getEdges(GDirection::OUT);
-			foreach ($edgesOut as $e){
-				foreach ($e->getVertexTO()->getFlags() as $fl){
-					if($fl == "IS:actor"){
-						$actorEdge = $e;
-						break 2;
-					}
-				}
-			}
 
 		$element_title =null;
 		$element_dc_title =null;
 		$contributor_label =null;
 
-		if(!empty($actorEdge)){
-			$element = $actorEdge->element();
-			$setting_json = Setting::get('contributor_work_type_map');
+		//First contributor concat to title
+		$edgesOut = $v->getEdges(GDirection::OUT);
+		$setting_json = Setting::get('contributor_work_type_map');
+		foreach ($edgesOut as $e){
+			$element = $e->element();
 			if (array_key_exists($element, $setting_json)) {
 				$contributor_label = $setting_json [$element];
 				$elementVertex = $v->getFirstVertex(GDirection::OUT,$element);
 				$element_title = GRuleUtil::getLabel($elementVertex);
 				$element_dc_title = $elementVertex->getPropertyValue("dc:title:");
+				break;
 			}
 		}
 
-		//Author name full-stop if not exist
+		//contributor name full-stop if not exist
 		$dot = false;
 		if (!empty($element_dc_title)){
 			if(substr($element_dc_title, -1) != '.'){
@@ -537,20 +769,6 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 
 		$label = $title_punct;
 
-// 		$contributorEdge = $v->getFirstEdge(GDirection::OUT,'');
-// 		if(!empty($contributorEdge)){
-// 			$element = $contributorEdge->element();
-// 			$setting_json = Setting::get('contributor_work_type_map');
-// 			if (array_key_exists($element, $setting_json)) {
-// 				$contributor_label = $setting_json [$element];
-// 				$elementVertex = $v->getFirstVertex(GDirection::OUT,$element);
-// 				//$element_title = $elementVertex->getPropertyValue('dc:title:');
-// 				$element_title = GRuleUtil::getLabel($elementVertex);
-// // 				$label = $label . ' / ' . $element_title . ' ['.$contributor_label.']' ;
-// 				$label = $element_title . ' ['.$contributor_label.']'. $label;
-// 			}
-// 		}
-
 		$this->opac2['Title_punc'] =  $label;
 		$this->label = $label;
 
@@ -572,6 +790,18 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 
 			$expr_title = GRuleUtil::getLabel($expr);
 
+			##MUSIC
+			$express_type = $expr->getPropertyValue('ea:form-type:');
+			if (!empty($express_type)){
+				if($express_type == 'auth-expression-music'){
+					$form = $expr->getPropertyValue('ea:expres:Form_music');
+					if (!empty($form)){
+						$expr_title =  '['.$form.'] '.$expr_title;
+					}
+				}
+			}
+			#######
+
 			//$manifs = $expr->getVertices(GDirection::OUT,'reverse:ea:work:');
 			$manifs = $expr->getVertices(GDirection::OUT,'ea:workOf:');
 			$emtree = ARRAY();
@@ -587,8 +817,12 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 				$ditems =$manif->getVertices(GDirection::BOTH,'ea:artifact-of:');
 				$dtree = ARRAY();
 				foreach ($ditems as $ditem){
+
 					$item_obj_type = $ditem->getPropertyValue('ea:obj-type:');
-					if ($item_obj_type=='digital-item'){
+					$ditem_sublocation =null;
+					$ditem_classification = null;
+
+					if ($item_obj_type == 'digital-item'){
 
 							$ditem_type = $ditem->getPropertyValue('ea:item:type');
 							if(empty($ditem_type)){
@@ -608,10 +842,23 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 							$template3 = Config::get('arc_display_template.digital_item_catalogue_title');
 
 					}else{
-							$ditem_type = $ditem->getPropertyValue('ea:item:type');
+							$ditem_type = $ditem->getProperty('ea:item:type');
 							$ditem_barcode = $ditem->getPropertyValue('ea:item:barcode');
 							$ditem_partNumber = $ditem->getPropertyValue('ea:item:partNumber');
 							$ditem_copyNumber = $ditem->getPropertyValue('ea:item:copyNumber');
+							$ditem_sublocation = $ditem->getProperty('ea:item:sublocation');
+							$ditem_classification = $ditem->getPropertyValue('ea:item:Classification');
+
+							if (!empty($ditem_type)){
+								$tmp =$ditem_type->value();
+								$ditem_type = ($tmp != 'undefined') ?  $ditem_type->prps('selected_value') : null;
+							}
+
+							if (!empty($ditem_sublocation)){
+								$tmp =$ditem_sublocation->value();
+								$ditem_sublocation = ($tmp != 'undefined') ?  $ditem_sublocation->prps('selected_value') : null;
+							}
+
 							$var_templ3 = array(
 									'type' => $ditem_type,
 									'barcode' => $ditem_barcode,
@@ -625,13 +872,27 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 					$ditem_all[$maif_id]['type'][] = $ditem_label;
 					$ditem_all[$maif_id]['id'][] = $ditem->persistenceId();
 					$ditem_all[$maif_id]['object-type'][]= $item_obj_type;
+					$ditem_all[$maif_id]['sublocation'][]= $ditem_sublocation;
+					$ditem_all[$maif_id]['classification'][]= $ditem_classification;
 
-					$dtree[] = ARRAY('title'=>$item_obj_type,'id'=>$ditem->persistenceId(),'label'=>$ditem_label);
+					$dtree[] = ARRAY('title'=>$item_obj_type,'id'=>$ditem->persistenceId(),'label'=>$ditem_label, 'sublocation'=>$ditem_sublocation, 'classification'=>$ditem_classification);
 				}
 
 			/**********************************************************************/
 
 				$manif_title = $manif->getTmpAttribute("Title_punc");
+
+				//MUSIC
+				$manif_type = $manif->getPropertyValue('ea:form-type:');
+				if($manif_type == 'auth-manifestation-music' && !empty($manif_type )){
+					$form_type = $manif->getProperty('ea:manif:Type');
+					if (!empty($form_type)){
+						$tmp = $form_type->value();
+						$form_manif = ($tmp != 'undefined') ?  $form_type->prps('selected_value') : null;
+						$manif_title = '['.$form_manif.'] '.$manif_title;
+					}
+				}
+
 				$emtree[] = ARRAY('title'=>$manif_title,'id'=>$manif->persistenceId(), 'items'=>$dtree);
 			}
 			$etree[] = ARRAY('title'=>$expr_title, 'id'=>$expr->persistenceId(), 'manifestations'=>$emtree);
@@ -656,6 +917,8 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 			$dtree = ARRAY();
 			foreach ($ditems as $ditem){
 				$item_obj_type = $ditem->getPropertyValue('ea:obj-type:');
+				$ditem_sublocation = null;
+				$ditem_classification = null;
 
 				if ($item_obj_type=='digital-item'){
 
@@ -677,10 +940,24 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 					$template2 = Config::get('arc_display_template.digital_item_catalogue_title');
 
 				}else{
-					$ditem_type = $ditem->getPropertyValue('ea:item:type');
+					$ditem_type = $ditem->getProperty('ea:item:type');
 					$ditem_barcode = $ditem->getPropertyValue('ea:item:barcode');
 					$ditem_partNumber = $ditem->getPropertyValue('ea:item:partNumber');
 					$ditem_copyNumber = $ditem->getPropertyValue('ea:item:copyNumber');
+					$ditem_sublocation = $ditem->getProperty('ea:item:sublocation');
+					$ditem_barcode = $ditem->getPropertyValue('ea:item:barcode');
+					$ditem_classification = $ditem->getPropertyValue('ea:item:Classification');
+
+					if (!empty($ditem_type)){
+						$tmp =$ditem_type->value();
+						$ditem_type = ($tmp != 'undefined') ?  $ditem_type->prps('selected_value') : null;
+					}
+
+					if (!empty($ditem_sublocation)){
+						$tmp =$ditem_sublocation->value();
+						$ditem_sublocation = ($tmp != 'undefined' ) ?  $ditem_sublocation->prps('selected_value') : null;
+					}
+
 					$var_templ2 = array(
 							'type' => $ditem_type,
 							'barcode' => $ditem_barcode,
@@ -694,9 +971,11 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 				$ditem_all[$maif_id]['type'][] = $ditem_label;
 				$ditem_all[$maif_id]['id'][]= $ditem->persistenceId();
 				$ditem_all[$maif_id]['object-type'][]= $item_obj_type;
+				$ditem_all[$maif_id]['sublocation'][]= $ditem_sublocation;
+				$ditem_all[$maif_id]['classification'][]= $ditem_classification;
 
 
-				$dtree[] = ARRAY('title'=>$item_obj_type,'id'=>$ditem->persistenceId(),'label'=>$ditem_label);
+				$dtree[] = ARRAY('title'=>$item_obj_type,'id'=>$ditem->persistenceId(),'label'=>$ditem_label, 'sublocation'=>$ditem_sublocation, 'classification'=>$ditem_classification);
 			}
 // 			$this->opac1['items'] = $dtree;
 			/**********************************************************************/
@@ -720,6 +999,14 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 				$digital_items = array();
 				$manif_title = $m->getTmpAttribute("Title_punc");
 
+				//DRYLL
+				$m_completion_level = null;
+				$manif_completion_level = $m->getPropertyValue('ea:control:completion_level');
+				if (isset($manif_completion_level)){
+					$m_completion_level = $manif_completion_level;
+				}
+				//**
+
 				$maif_id = $m->persistenceId();
 				foreach($ditem_all as $dkey => $dvalue)
 				{
@@ -728,58 +1015,86 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 						}
 				}
 
-				$public_lines[]  = array('title'=>$manif_title, 'id'=>$m->persistenceId(),'items'=>$digital_items);
+				//DRYLL -->'completion_level'=>$m_completion_level
+				$public_lines[]  = array('title'=>$manif_title, 'id'=>$m->persistenceId(),'items'=>$digital_items, 'completion_level'=>$m_completion_level);
 			}
 
 			$this->opac1['public_lines'] = $public_lines;
 
 
-			///THUMBNAILS//
-			if (!empty(PDao::getThumbs($id))){
-				$this->opac1['thumbs'] = PDao::getThumbs($id);
-			}else{
-				$e = $v->getFirstVertex(GDirection::OUT, 'ea:expression:');//Express of Work
-// 				$e = $v->getFirstVertex(GDirection::IN, 'ea:expressionOf:');//Express of Work (deprecated)
-				if (!empty($e)){
-					$express_id = $e->persistenceId();
-					$express_thumbs =PDao::getThumbs($express_id);
-					if (!empty($express_thumbs)){
-						$this->opac1['thumbs'] = $express_thumbs;
-					}else{
-						$m = $e->getFirstVertex(GDirection::IN, 'ea:work:'); //Manif of Express
-						if (!empty($m)){
-							$manif_id = $m->persistenceId();
-							$manif_thumbs =PDao::getThumbs($manif_id);
-							if (!empty($manif_thumbs)){
-								$this->opac1['thumbs'] = $manif_thumbs;
-							}else{
-								$m = $v->getFirstVertex(GDirection::IN, 'ea:work:'); //(direct) Manif of Work
-								if (!empty($m)){
-									$manif_id = $m->persistenceId();
-									$manif_thumbs =PDao::getThumbs($manif_id);
-									if (!empty($manif_thumbs)){
-										$this->opac1['thumbs'] = $manif_thumbs;
-									}
-								}
-							}
-						}else{
-								$m = $v->getFirstVertex(GDirection::IN, 'ea:work:'); //(direct) Manif of Work
-								if (!empty($m)){
-									$manif_id = $m->persistenceId();
-									$manif_thumbs =PDao::getThumbs($manif_id);
-									if (!empty($manif_thumbs)){
-										$this->opac1['thumbs'] = $manif_thumbs;
-									}
-								}
-							}
-					}
+			//Flags is musical
+			$work_type = $v->getPropertyValue('ea:form-type:');
+			if (!empty($work_type)){
+				if($work_type == 'auth-work-music'){
+					$v->addFlag('IS:musical');
 				}else{
-					$m = $v->getFirstVertex(GDirection::IN, 'ea:work:'); //(direct) Manif of Work
-					if (!empty($m)){
-						$manif_id = $m->persistenceId();
-						$manif_thumbs =PDao::getThumbs($manif_id);
+					$v->removeFlag('IS:musical');
+				}
+			}
+			//**
+
+			//Dryll - Flags is old/new/corrected record
+			$completion_level = $v->getPropertyValue('ea:control:completion_level');
+			if (isset($completion_level)){
+				$this->opac1['completion_level'] = $completion_level;
+				if($completion_level == 0){
+					$v->addFlag('IS:new');
+					$v->removeFlag('IS:old');
+					$v->removeFlag('IS:corrected');
+				}elseif($completion_level == 1){
+					$v->addFlag('IS:old');
+					$v->removeFlag('IS:new');
+					$v->removeFlag('IS:corrected');
+				}elseif($completion_level == 2){
+					$v->addFlag('IS:corrected');
+					$v->removeFlag('IS:old');
+					$v->removeFlag('IS:new');
+				}else{
+					$v->removeFlag('IS:old');
+					$v->removeFlag('IS:new');
+					$v->removeFlag('IS:corrected');
+			}
+			}
+			//**
+
+			///THUMBNAILS//
+			$thumbs = PDao::getThumbs2($id);
+			if (!empty($thumbs)){
+				$this->opac1['thumbs'] = $thumbs;
+			}else{
+				$m = $v->getVertices(GDirection::IN, 'ea:work:'); //(direct) Manif of Work
+				if (!empty($m)){
+					foreach ($m as $manif){
+						$manif_id = $manif->persistenceId();
+						$manif_thumbs = PDao::getThumbs2($manif_id);
 						if (!empty($manif_thumbs)){
 							$this->opac1['thumbs'] = $manif_thumbs;
+							break;
+						}
+					}
+				}
+				if (empty($this->opac1['thumbs'])){
+					$e = $v->getVertices(GDirection::OUT, 'ea:expression:');//Express of Work
+					if (!empty($e)){
+						foreach ($e as $expres){
+							$express_id = $expres->persistenceId();
+							$express_thumbs =PDao::getThumbs2($express_id);
+							if (!empty($express_thumbs)){
+								$this->opac1['thumbs'] = $express_thumbs;
+								break;
+							}else{
+								$m = $expres->getVertices(GDirection::IN, 'ea:work:'); //Manif of Express
+								if (!empty($m)){
+									foreach ($m as $manif){
+										$manif_id = $manif->persistenceId();
+										$manif_thumbs =PDao::getThumbs2($manif_id);
+										if (!empty($manif_thumbs)){
+											$this->opac1['thumbs'] = $manif_thumbs;
+											break;
+										}
+									}
+								}
+							}
 						}
 					}
 				}
@@ -868,14 +1183,16 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 		$this->opac1['id'] = $id;
 
 		$title_punct = $v->getTmpAttribute('Title_punc');
+
 		$this->opac2['Title_punc'] =  $title_punct;
 
 		$this->label = $title_punct;
 
-
+		$this->opac1['publication'] = (!empty($v->getTmpAttribute('publication')))?$v->getTmpAttribute('publication'):'';
 
 		//*ITEMS
-		$ditems = $v->getVertices(GDirection::BOTH,'ea:artifact-of:');
+		//$ditems = $v->getVertices(GDirection::BOTH,'ea:artifact-of:');
+		$ditems = $v->getVertices(GDirection::OUT,'reverse:ea:artifact-of:');
 		$dtree = ARRAY();
 		foreach ($ditems as $ditem){
 			$item_obj_type = $ditem->getPropertyValue('ea:obj-type:');
@@ -900,10 +1217,37 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 				$template = Config::get('arc_display_template.digital_item_catalogue_title');
 
 			}else{
-				$ditem_type = $ditem->getPropertyValue('ea:item:type');
+				//PHYSICAL-ITEM
+				$ditem_type = $ditem->getProperty('ea:item:type');
+				$ditem_location = $ditem->getProperty('ea:item:location');
+				$ditem_sublocation = $ditem->getProperty('ea:item:sublocation');
+				$ditem_office_code = $ditem->getPropertyValue('ea:item:office_code');
+				$ditem_owner = $ditem->getPropertyValue('ea:item:ownerItem');
 				$ditem_barcode = $ditem->getPropertyValue('ea:item:barcode');
 				$ditem_partNumber = $ditem->getPropertyValue('ea:item:partNumber');
 				$ditem_copyNumber = $ditem->getPropertyValue('ea:item:copyNumber');
+				$ditem_classification = $ditem->getProperty('ea:item:Classification');
+
+				if (!empty($ditem_type)){
+					$tmp =$ditem_type->value();
+					$ditem_type = ($tmp != 'undefined') ?  $ditem_type->prps('selected_value') : null;
+				}
+
+				if (!empty($ditem_location)){
+					$tmp =$ditem_location->value();
+					$ditem_location = ($tmp != 'undefined') ?  $ditem_location->prps('selected_value') : null;
+				}
+
+				if (!empty($ditem_sublocation )){
+					$tmp =$ditem_sublocation ->value();
+					$ditem_sublocation  = ($tmp != 'undefined') ?  $ditem_sublocation ->prps('selected_value') : null;
+				}
+
+				if (!empty($ditem_classification)){
+					$ditem_classification = $ditem_classification->pnctn();
+				}
+
+
 				$var_templ = array(
 						'type' => $ditem_type,
 						'barcode' => $ditem_barcode,
@@ -911,14 +1255,32 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 						'copyNumber' => $ditem_copyNumber,
 				);
 				$template = Config::get('arc_display_template.physical_item_catalogue_title');
+				$ditem_label = ArcTemplateEngine::renderLine($template,$var_templ);
+
+				$ptree[] = ARRAY(
+													'title'=>$item_obj_type,
+													'id'=>$ditem->persistenceId(),
+													'label'=>$ditem_label,
+													'type'=>$ditem_type,
+													'location'=>$ditem_location,
+													'sublocation'=>$ditem_sublocation,
+													'office_code'=>$ditem_office_code,
+													'owner'=>$ditem_owner,
+													'barcode'=>$ditem_barcode,
+													'partNumber'=>$ditem_partNumber,
+													'copyNumber'=>$ditem_copyNumber,
+													'classification'=>$ditem_classification
+												);
+				$this->opac1['physical-items'] = $ptree;
 			}
+			///////////////////
 
 
 			$ditem_label = ArcTemplateEngine::renderLine($template,$var_templ);
-
 			$dtree[] = ARRAY('title'=>$item_obj_type,'id'=>$ditem->persistenceId(),'label'=>$ditem_label);
 		}
 		$this->opac1['items'] = $dtree;
+
 
 
 		//*EXRESS-WORK LANG
@@ -960,6 +1322,78 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 			}
 		}
 
+		##################### DRYL ################################
+		$manif_langs = $v->getProperties('ea:expres:Language');
+		if (!empty($manif_langs)){
+			foreach ($manif_langs as $ml){
+				$tmp =$ml->value();
+				if ($tmp != 'undefined'){
+					$manif_lang[] = $ml->prps('selected_value');
+				}
+			}
+		}
+
+		$periodic = $v->getFirstVertex(GDirection::IN,'ea:hasIssue:');
+		if (!empty($periodic )){
+			$periodic_langs = $periodic->getProperties('ea:expres:Language');
+			if (!empty($periodic_langs)){
+				foreach ($periodic_langs as $pl){
+					$tmp =$pl->value();
+					if ($tmp != 'undefined'){
+						$manif_lang[] = $pl->prps('selected_value');
+					}
+				}
+			}
+		}
+
+		$completion_level = $v->getPropertyValue('ea:control:completion_level');
+		if (isset($completion_level)){
+			$this->opac1['completion_level'] = $completion_level;
+			if($completion_level == 0){
+				$v->addFlag('IS:new');
+				$v->removeFlag('IS:old');
+				$v->removeFlag('IS:corrected');
+			}elseif($completion_level == 1){
+				$v->addFlag('IS:old');
+				$v->removeFlag('IS:new');
+				$v->removeFlag('IS:corrected');
+			}elseif($completion_level == 2){
+				$v->addFlag('IS:corrected');
+				$v->removeFlag('IS:old');
+				$v->removeFlag('IS:new');
+			}else{
+				$v->removeFlag('IS:old');
+				$v->removeFlag('IS:new');
+				$v->removeFlag('IS:corrected');
+			}
+		}
+		###########################################################
+
+
+		//ISSUE PUBLISHER
+		$manif_type = $v->getPropertyValue('ea:form-type:');
+		if (!empty($manif_type)){
+
+			if($manif_type == 'issue'){
+				$periodic = $v->getFirstVertex(GDirection::IN, 'ea:hasIssue:');
+				if (!empty($periodic)){
+					$ppublishers = $periodic->getVertices(GDirection::OUT, 'ea:periodic:publisher_name');
+					$publishers = array();
+					if (!empty($ppublishers)){
+						foreach ($ppublishers as $pub){
+							//$value_array['name'] = = GRuleUtil::getLabel($publisher);
+							$value_array['name'] = $pub->getPropertyValue('dc:title:');
+							$value_array['id'] = $pub->persistenceId();
+							$publishers[]= $value_array;
+						}
+					}
+
+					$this->opac1['publishers'] = $publishers;
+				}
+			}
+		}
+
+
 		//Authors
 		$work_indirect = $v->getFirstVertex(GDirection::OUT,'inferred:ea:work:');
 		$work_direct_out = $v->getFirstVertex(GDirection::OUT,'ea:work:');
@@ -992,6 +1426,59 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 		}
 
 		$this->opac1['authors'] = $auth_w_opac;//$authors;
+
+
+		//Work-Periodic/ Categories/ Conferences////////////////////////////////////////////////////////////////////////////////////////
+		$w_categories = array();
+		$w_category = array();
+		$periodic_direct = $v->getFirstVertex(GDirection::IN,'ea:hasIssue:');
+		if(!empty($work_direct_in)){
+			$work_categories = $work_direct_in->getVertices(GDirection::OUT,'ea:work:subjectCategory');
+			foreach ($work_categories as $category){
+				$w_category['label'] = $category->getAttribute('label');
+				$w_category['id'] = $category->persistenceId();
+				$w_categories[] = $w_category;
+			}
+			if (!empty($w_categories)){
+				$this->opac1['work_categories'] = $w_categories;
+			}
+
+			### Dryll Conference #####################
+			if(!empty($work_direct_in)){
+				$conference = $work_direct_in->getFirstVertex(GDirection::OUT,'ea:work:conference_event');
+				if (!empty($conference)){
+					$conf = array();
+					$c_coordinator = array();
+					$c_coordinators = array();
+
+					$conf['label'] = $conference->getPropertyValue('dc:title:');
+					$conf['id'] = $conference->persistenceId();
+					$this->opac1['conference'] = $conf;
+
+					$conf_coordinators= $conference->getVertices(GDirection::OUT,'ea:event:coordinator_of_conference');
+					foreach ($conf_coordinators as $coordinator){
+						$c_coordinator['label'] = $coordinator->getAttribute('label');
+						$c_coordinator['id'] = $coordinator->persistenceId();
+						$c_coordinators[] = $c_coordinator;
+					}
+					if (!empty($c_coordinators)){
+							$this->opac1['conf_coordinators'] = $c_coordinators;
+					}
+				}
+			}
+			############################################
+
+		}elseif ($periodic_direct){
+			$periodic_categories = $periodic_direct->getVertices(GDirection::OUT,'ea:periodic:category');
+			foreach ($periodic_categories as $category){
+				$w_category['label'] = $category->getAttribute('label');
+				$w_category['id'] = $category->persistenceId();
+				$w_categories[] = $w_category;
+			}
+			if (!empty($w_categories)){
+				$this->opac1['periodic_categories'] = $w_categories;
+			}
+		}
 
 		//Citation///////////////////////////////////////////////////////////////////
 		//Author, A. A. (Year of publication). Title of work: Capital letter also for subtitle. Location: Publisher.
@@ -1027,6 +1514,7 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 			}
 		}
 
+
 		$var_citation_templ = array(
 				'authors' => $auth_w_citation,
 				'publication_date' => $publication_date,
@@ -1042,14 +1530,61 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 		///////////////////////////////////////////////////////////////////////////////
 
 
-
 		$this->opac1['lang'] = 	$manif_lang;
 		$v->setTmpAttribute('Manif_lang', $manif_lang); //Solr tmp var
 
+		//Flags is issue/book/musical && Form-type
+		$manif_type = $v->getPropertyValue('ea:form-type:');
+		if (!empty($manif_type)){
+			($manif_type == 'issue') ? $v->addFlag('IS:issue') : $v->removeFlag('IS:issue') ;
+			($manif_type == 'book') ? $v->addFlag('IS:book') : $v->removeFlag('IS:book') ;
 
+			if($manif_type == 'auth-manifestation-music'){
+				$v->addFlag('IS:musical');
+				$form_type = $v->getProperty('ea:manif:Type');
+				if (!empty($form_type)){
+					$tmp = $form_type->value();
+					$this->opac1['form'] = ($tmp != 'undefined') ?  $form_type->prps('selected_value') : null;
+				}
+			}else{
+				$v->removeFlag('IS:musical') ;
+			}
+		}
 		//**
 
-		$this->opac1['thumbs'] = PDao::getThumbs($id); ///THUMBNAILS//
+		///THUMBNAILS//
+		$thumbs = PDao::getThumbs2($id);
+		if (!empty($thumbs)){
+			$this->opac1['thumbs'] = $thumbs;
+		}elseif($manif_type == 'issue'){
+			$periodic = $v->getFirstVertex(GDirection::IN, 'ea:hasIssue:');//Periodic of issue
+			if (!empty($periodic)){
+				$periodic_id = $periodic->persistenceId();
+				$periodic_thumbs =PDao::getThumbs2($periodic_id);
+				if (!empty($periodic_thumbs)){
+					$this->opac1['thumbs'] = $periodic_thumbs;
+				}
+			}
+		}else{
+			$we = $v->getFirstVertex(GDirection::OUT, 'ea:work:');//Express of Manif or Work of Manif
+			if (!empty($we)){
+				$we_id = $we->persistenceId();
+				$we_thumbs =PDao::getThumbs2($we_id);
+				if (!empty($we_thumbs)){
+					$this->opac1['thumbs'] = $we_thumbs;
+				}else{
+					$work_inf = $we->getFirstVertex(GDirection::OUT, 'inferred:ea:work:'); //Work of Manif (direct)
+					if (!empty($work_inf)){
+						$work_inf_id = $work_inf->persistenceId();
+						$work_inf_thumbs =PDao::getThumbs2($work_inf_id);
+						if (!empty($work_inf_thumbs)){
+							$this->opac1['thumbs'] = $work_inf_thumbs;
+						}
+					}
+				}
+			}
+		}
+
 
 		//*WORKS (individual,independent)
 		$workIndependent = $v->getVertices(GDirection::OUT,'ea:work:independent');
@@ -1093,10 +1628,68 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 
 		$title_punct = $v->getTmpAttribute('Title_punc');
 		$this->opac2['Title_punc'] =  $title_punct;
-
 		$this->label = $title_punct;
 
-		$this->opac1['thumbs'] = PDao::getThumbs($id); ///THUMBNAILS//
+		//WORKS
+		$works = $v->getVertices(GDirection::OUT,'ea:expressionOf:');
+		$wtree= ARRAY();
+		foreach ($works as $work){
+			$work_id = $work->persistenceId();
+			//$manif_title = $manif->getPropertyValue('dc:title:');
+			$work_title =  GRuleUtil::getLabel($work);
+			$wtree[] = ARRAY('title'=>$work_title,'id'=>$work_id,/*'items'=>$dtree*/);
+		}
+		$this->opac1['works'] = $wtree;
+
+		//MANIFS
+		$manifs = $v->getVertices(GDirection::OUT,'ea:workOf:');
+		$mtree = ARRAY();
+		foreach ($manifs as $manif){
+			$mafs[] = $manif;
+			$maif_id = $manif->persistenceId();
+			//$manif_title = $manif->getPropertyValue('dc:title:');
+			$manif_title = $manif->getTmpAttribute("Title_punc");
+
+			##MUSIC
+			$manif_type = $manif->getPropertyValue('ea:form-type:');
+			if (!empty($manif_type)){
+				if($manif_type == 'auth-manifestation-music'){
+					$form_type = $manif->getProperty('ea:manif:Type');
+					if (!empty($form_type)){
+						$tmp = $form_type->value();
+						$form = ($tmp != 'undefined') ?  $form_type->prps('selected_value') : null;
+						$manif_title =  '['.$form.'] '.$manif_title;
+					}
+				}
+			}
+			#######
+
+			$mtree[] = ARRAY('title'=>$manif_title,'id'=>$manif->persistenceId(),/*'items'=>$dtree*/);
+		}
+		$this->opac1['manifestations'] = $mtree;
+
+
+		//Flags is musical & Express_Form
+		$express_type = $v->getPropertyValue('ea:form-type:');
+		if (!empty($express_type)){
+			if($express_type == 'auth-expression-music'){
+				$this->opac1['form'] = $v->getPropertyValue('ea:expres:Form_music');
+				$v->addFlag('IS:musical');
+				$form = $v->getPropertyValue('ea:expres:Form_music');
+				if (!empty($form)){
+					$this->opac2['Title_punc'] =  '['.$form.'] '.$title_punct;
+				}
+			}else{
+				$v->removeFlag('IS:musical');
+			}
+		}
+		//**
+
+// 		$this->opac1['thumbs'] = PDao::getThumbs($id); ///THUMBNAILS//
+		$thumbs = PDao::getThumbs2($id);
+		if (!empty($thumbs)){
+			$this->opac1['thumbs'] = $thumbs;
+		}
 
 	}
 
@@ -1162,35 +1755,52 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 
 		$v->updatePropertyValue('ea:label:', null, $label);
 
-
 		if (empty($this->label)){
 			$this->label =  $label;
 		}
 
-		if (!empty($v->getVertices(GDirection::IN,'ea:manif:Publisher_Name'))){
-			$this->opac1['as_publishers'] = count($v->getVertices(GDirection::IN,'ea:manif:Publisher_Name'));
-		}
 
-	if (!empty($v->getVertices(GDirection::IN,'ea:subj:'))){
-			$this->opac1['as_subj'] = count($v->getVertices(GDirection::IN,'ea:subj:'));
-			if (!empty($v->getVertices(GDirection::IN,'ea:inferred-chain-link:'))){
-				$chain_link = $v->getVertices(GDirection::IN,'ea:inferred-chain-link:');
+		$manif_publishers = 0;
+		$per_publishers = 0;
+		$as_publishers = $v->getVertices(GDirection::IN,'ea:manif:Publisher_Name');
+		if (!empty($as_publishers)){
+			$manif_publishers = count($as_publishers);
+		}
+		##################### DRYL ################################
+		$as_per_publishers = $v->getVertices(GDirection::IN,'ea:periodic:publisher_name');
+		if (!empty($as_per_publishers)){
+			$per_publishers = count($as_per_publishers);
+		}
+		###########################################################
+		$this->opac1['as_publishers'] = $manif_publishers + $per_publishers;
+
+
+		$as_subj = $v->getVertices(GDirection::IN,'ea:subj:');
+		$chain_link = $v->getVertices(GDirection::IN,'ea:inferred-chain-link:');
+		if (!empty($as_subj)){
+				$this->opac1['as_subj'] = count($as_subj);
+				if (!empty($chain_link)){
+					foreach ($chain_link as $cl){
+						$as_subj  = $cl->getVertices(GDirection::IN,'ea:subj:');
+						if (!empty($as_subj)){
+							$this->opac1['as_subj'] += count($as_subj);
+						}
+					}
+				}
+			}elseif (!empty($chain_link)){
 				foreach ($chain_link as $cl){
-					if (!empty($cl->getVertices(GDirection::IN,'ea:subj:'))){
-						$this->opac1['as_subj'] += count($cl->getVertices(GDirection::IN,'ea:subj:'));
+					$as_subj = $cl->getVertices(GDirection::IN,'ea:subj:');
+					if (!empty($as_subj)){
+						$this->opac1['as_subj'] = count($as_subj);
 					}
 				}
 			}
-		}else	if (!empty($v->getVertices(GDirection::IN,'ea:inferred-chain-link:'))){
-			$chain_link = $v->getVertices(GDirection::IN,'ea:inferred-chain-link:');
-			foreach ($chain_link as $cl){
-				if (!empty($cl->getVertices(GDirection::IN,'ea:subj:'))){
-					$this->opac1['as_subj'] = count($cl->getVertices(GDirection::IN,'ea:subj:'));
-				}
-			}
-		}
 
-		$this->opac1['thumbs'] = PDao::getThumbs($id); ///THUMBNAILS//
+		//$this->opac1['thumbs'] = PDao::getThumbs($id); ///THUMBNAILS//
+		$thumbs = PDao::getThumbs2($id);
+		if (!empty($thumbs)){
+			$this->opac1['thumbs'] = $thumbs;
+		}
 
 	}
 
@@ -1199,6 +1809,7 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 	 * @param GVertex $v
 	 */
 	protected function processVertex( $v){
+		//Putil::logGreen('OPACDATA: '. $v->urnStr());
 		$this->title = null;
 		$this->label = null;
 		$this->opac1 = array();
@@ -1227,6 +1838,8 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 			$this->processExpression( $v);
 		}elseif ($obj_type == 'auth-work'){
 			$this->processWork($v);
+		}elseif  ($obj_type == 'periodic'){
+			$this->processPeriodic($v);
 		}elseif($obj_type == 'auth-place'){
 			$this->processPlace($v);
 		}elseif ($obj_type == 'digital-item'){
@@ -1309,5 +1922,3 @@ class GRuleOpacData extends AbstractGruleProcessVertice implements GRule {
 
 
 }
-
-?>

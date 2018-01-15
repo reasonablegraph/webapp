@@ -247,5 +247,3 @@ class GRulePgFTS2 extends AbstractGruleProcessVertice implements GRule {
 
 }
 
-
-?>

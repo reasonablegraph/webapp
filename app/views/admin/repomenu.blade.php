@@ -141,6 +141,10 @@ div.columnst {
 				<div class="col-sm-8">
 								<ul>
 									<li><a href="/prepo/report1"  target="_blank">Manifestations Report</a></li>
+									<li><a href="/prepo/download-log" >Files Downloads Log</a></li>
+									@if (variable_get('lemmas_report'))
+										<li><a href="/prepo/researchers-report" >Researchers Report</a></li>
+									@endif
 								</ul>
 				</div>
 			</div>
@@ -155,6 +159,7 @@ div.columnst {
 								<ul>
 									<li><a href="/prepo/action2">Staff Actions/Logs</a></li>
 									<li><a href="/prepo/action1">Staff Actions ( last hour activity )</a></li>
+									<li><a href="/prepo/reset-log">Reset graph log</a></li>
 								</ul>
 				</div>
 			</div>
@@ -172,51 +177,55 @@ div.columnst {
 			<div class="panel-body">
 				<div class="col-sm-6">
 					<ul>
-						<li><a href="/archive/recent?s=all">all</a>
+						<li><a href="/archive/recent?s=all">all</a></li>
 
 						<li><a
-							href="/archive/recent?s=<?=Config::get('arc.ITEM_STATUS_INCOMPLETE')?>"><?=Config::get('arc.ITEM_STATUS_INCOMPLETE')?></a>
+							href="/archive/recent?s=<?=Config::get('arc.ITEM_STATUS_INCOMPLETE')?>"><?=Config::get('arc.ITEM_STATUS_INCOMPLETE')?></a></li>
 
 						<li><a
-							href="/archive/recent?s=<?=Config::get('arc.ITEM_STATUS_ERROR')?>"><?=Config::get('arc.ITEM_STATUS_ERROR')?></a>
+							href="/archive/recent?s=<?=Config::get('arc.ITEM_STATUS_ERROR')?>"><?=Config::get('arc.ITEM_STATUS_ERROR')?></a></li>
 
 						<li><a
-							href="/archive/recent?s=<?=Config::get('arc.ITEM_STATUS_PENDING')?>"><?=Config::get('arc.ITEM_STATUS_PENDING')?></a>
+							href="/archive/recent?s=<?=Config::get('arc.ITEM_STATUS_PENDING')?>"><?=Config::get('arc.ITEM_STATUS_PENDING')?></a></li>
 
 						<li><a
-							href="/archive/recent?s=<?=Config::get('arc.ITEM_STATUS_PRIVATE')?>"><?=Config::get('arc.ITEM_STATUS_PRIVATE')?></a>
+							href="/archive/recent?s=<?=Config::get('arc.ITEM_STATUS_PRIVATE')?>"><?=Config::get('arc.ITEM_STATUS_PRIVATE')?></a></li>
 
 						<li><a
-							href="/archive/recent?s=<?=Config::get('arc.ITEM_STATUS_HIDDEN')?>"><?=Config::get('arc.ITEM_STATUS_HIDDEN')?></a>
+							href="/archive/recent?s=<?=Config::get('arc.ITEM_STATUS_HIDDEN')?>"><?=Config::get('arc.ITEM_STATUS_HIDDEN')?></a></li>
 
 						<li><a href="/archive/recent?s=direct_only">direct_only</a>
 
 						<li><a
-							href="/archive/recent?s=<?=Config::get('arc.ITEM_STATUS_INTERNAL')?>"><?=Config::get('arc.ITEM_STATUS_INTERNAL')?></a>
+							href="/archive/recent?s=<?=Config::get('arc.ITEM_STATUS_INTERNAL')?>"><?=Config::get('arc.ITEM_STATUS_INTERNAL')?></a></li>
 					</ul>
 				</div>
 				<div class="col-sm-6">
 					<ul>
-						<li><a href="/archive/recent?s=all-dev">all (dev)</a>
-						<li><a href="/prepo/node_stats">all types</a>
+						<li><a href="/archive/recent?s=all-dev">all (dev)</a></li>
+						<li><a href="/prepo/node_stats">all types</a></li>
 <?php
 	$print_flag = variable_get ( 'arc_display_articles', 0 );
 	if ($print_flag) :
 		?>
-						<li><a href="/archive/recent?t=article">articles</a>
+						<li><a href="/archive/recent?t=article">articles</a></li>
 <?php endif;?>
 <?php
 	$print_flag = variable_get ( 'arc_display_notes', 0 );
 	if ($print_flag) :
 		?>
-						<li><a href="/archive/recent?t=note">notes</a>
+						<li><a href="/archive/recent?t=note">notes</a></li>
 <?php endif;?>
-						<li><a href="/archive/recent?t=digital-item"> items</a>
-						<li><a href="/archive/recent?t=digital-item&f=or"> all orphans items</a>
-						<li><a href="/archive/recent?t=digital-item&f=or&ft=ur"> provider's orphans items</a>
+						<li><a href="/prepo/all_users_items">all users entries</a></li>
+						<li><a href="/prepo/user_items"> user entries</a></li>
+						<li><a href="/archive/recent?t=digital-item"> items</a></li>
+						<li><a href="/archive/recent?t=digital-item&f=or"> all orphans items</a></li>
+						<li><a href="/archive/recent?t=digital-item&f=or&ft=org"> provider's orphans items</a></li>
 
 <!-- 						<li><a href="/archive/recent?t=bitstream"> bitstreams</a> -->
-						<li><a href="/prepo/submits"> submits</a>
+						<li><a href="/prepo/submits"> submits</a></li>
+						<li><a href="/prepo/submitsactive"> active submits</a></li>
+						<li><a href="/prepo/submitserror"> errored submits</a></li>
 <!-- 						<li><a href="/archive/recent?t=silogi"> collections (folders)</a> -->
 					</ul>
 

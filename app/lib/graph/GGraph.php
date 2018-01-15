@@ -1,7 +1,17 @@
 <?php
 //use Rhumsaa\Uuid\Uuid;
 
-interface GGraph {
+interface ReadOnlyStrategy {
+	/**
+	 * @param GVertex $v
+	 * @return boolean
+	 */
+	public function canSetReadonly($v);
+
+}
+
+
+interface GGraph extends ReadOnlyStrategy {
 
 	/**
 	 *
@@ -16,6 +26,12 @@ interface GGraph {
 	 * @return GVertex
 	 */
 	public function getVertex($urnStr);
+
+	/**
+	 * @param long $id
+	 * @return GVertex
+	 */
+	public function getVertexByPersisteceId($id);
 
 	/**
 	 * @return GVertex[]
@@ -56,7 +72,7 @@ interface GGraph {
 
 
 	public function countVertices();
-
+	public function countEdges();
 
 	/**
 	 *
@@ -68,7 +84,7 @@ interface GGraph {
 	 *
 	 * @param string||Gedge $vkey
 	 */
-	public function removeEdge($vkey);
+	public function removeEdge($vkey, $syncPersistence = false);
 	/**
 	 *
 	 * @param string[]|| GEdge[] $vkeys
@@ -98,7 +114,7 @@ interface GGraph {
 	 * @param int $maxDistance
 	 * @param callable $handler
 	 */
-	public function traverseBF($root, $maxDistance, $handler, $elements = null, $direction = GDirection::OUT, $vertexFilter = null);
+	public function traverseBF($root, $maxDistance, $handler, $elements = null, $direction = GDirection::OUT, $vertexFilter = null,$traverseInferred = true);
 
 	/**
 	 * Depth-first traverse (ana klado)
@@ -132,7 +148,21 @@ interface GGraph {
 
 	public function renameEdge($vkey,$newElement);
 
+}
 
+
+
+
+class ReadOnlyStrategyDefault implements ReadOnlyStrategy {
+	public function canSetReadonly($v){
+		return ($v->getObjectType() != 'subject-chain');
+	}
+}
+
+class ReadOnlyStrategyNoSubjectChain implements ReadOnlyStrategy {
+	public function canSetReadonly($v){
+		return ($v->getObjectType() != 'subject-chain');
+	}
 }
 
 
@@ -162,8 +192,36 @@ class GGraphO implements GGraph {
 	 * @param GVertex[] $vertices
 	 * @param GEdge[] $edges
 	 */
-	public function __construct() {
+	public function GGraphO() {
+		$readOnlyStrategyConfigClass = Config::get('arc_rules.READONLY_STRATEGY');
+		if (empty($readOnlyStrategyConfigClass)){
+			$this->readOnlyStrategy = new ReadOnlyStrategyDefault();
+		} else {
+			$this->readOnlyStrategy = new $readOnlyStrategyConfigClass();
+		}
 	//	$this->_uuid = Uuid::uuid1();
+		//$this->readOnlyStrategy = new ReadOnlyStrategyDefault();
+	}
+
+
+	/**
+	 * @var ReadOnlyStrategy
+	 */
+	private $readOnlyStrategy;
+
+	/**
+	 * @param ReadOnlyStrategy $readOnlyStrategy
+	 */
+	public function setReadOnlyStrategy($readOnlyStrategy){
+		$this->readOnlyStrategy = $readOnlyStrategy;
+	}
+
+	/**
+	 * @param GVertex $v
+	 * @return bool
+	 */
+	function canSetReadonly($v){
+		return $this->readOnlyStrategy->canSetReadonly($v);
 	}
 
 
@@ -175,14 +233,21 @@ class GGraphO implements GGraph {
 
 	/**
 	 *
-	 * @param GProperty $p
 	 * @param GURN $urn
 	 * @return GVertexO
 	 */
-	private function createVertex($urn) {
+	private function _createVertex($urn) {
 		$v = new GVertexO($this, $urn);
 		$this->memV[$urn->toString()] = $v;
 		return $v;
+	}
+	/**
+	 *
+	 * @param GURN $urn
+	 * @return GVertexO
+	 */
+	public function createVertex($urn) {
+		return $this->_createVertex($urn);
 	}
 
 	/**
@@ -197,7 +262,7 @@ class GGraphO implements GGraph {
 			$v->setTmpAttribute('_gvoc', 0);
 			return $v;
 		}
-		return $this->createVertex($urn);
+		return $this->_createVertex($urn);
 	}
 
 	/**
@@ -217,6 +282,11 @@ class GGraphO implements GGraph {
 	public function getVertex($urnStr) {
 		if (is_object($urnStr)){  $urnStr = $urnStr->toString(); }
 		return isset($this->memV[$urnStr]) ? $this->memV[$urnStr] : null;
+	}
+
+	public function getVertexByPersisteceId($id){
+		if (empty($id)){ return null; }
+		return $this->getVertex(GURN::createOLDWithId($id));
 	}
 
 	/**
@@ -277,8 +347,9 @@ class GGraphO implements GGraph {
 	}
 
 
+
 	public function removeVertex($urnStr, $syncPersistence = false){
-		//Log::info("removeVertex: " .$urnStr . ' SYNC: ' . ($syncPersistence?'TRUE':'FALSE'));
+		//Putil.logRed("removeVertex: " .$urnStr . ' SYNC: ' . ($syncPersistence?'TRUE':'FALSE'));
 		$v = $this->getVertex($urnStr);
 		if ($v->isReadOnly()){
 			Log::info("READONLY SKIP REMOVE VERTEX (2): " .$urnStr);
@@ -335,6 +406,7 @@ class GGraphO implements GGraph {
 		unset($this->memE[$e->vkey()]);
 
 		if ($syncPersistence){
+
 			/* @var $pprod GProperty */
 			$pprod = $e->persistenceProp();
 			if (!empty($pprod)){
@@ -348,7 +420,10 @@ class GGraphO implements GGraph {
 	public function  removeInferredEdges(){
 		$des = $this->getInferredEdges();
 		foreach ($des as $e){
-			$this->_removeEdge($e);
+			$vf = $e->getVertexFrom();
+			if (!$vf->isReadOnly()) {
+				$this->_removeEdge($e);
+			}
 		}
 	}
 
@@ -431,8 +506,8 @@ class GGraphO implements GGraph {
 	 *
 	 * @see GGraph::traverseBF()
 	 */
-	public function traverseBF($root, $maxDistance, $handler, $elements = null, $direction=GDirection::OUT, $vertexFilter = null) {
-		//Log::info("traverseBF: " . $root->urnStr());
+	public function traverseBF($root, $maxDistance, $handler, $elements = null, $direction=GDirection::OUT, $vertexFilter = null, $traverseInferred = true) {
+		//Log::info("#0# traverseBF: " . $root->id());
 // 		if ($direction == GDirection::BOTH){
 // 			throw new Exception('traverseBF ERROR DIRECITON: GDirection::BOTH');
 // 		}
@@ -471,13 +546,17 @@ class GGraphO implements GGraph {
 			$successorEdges = $v->getEdges($direction, $elements);
 			//Log::info( "#1# V: " . $v->id() .  ' edge-count: ' . count($successorEdges));
 			foreach ( $successorEdges as $e ) {
+			  if (!$traverseInferred && $e->isInferred()){
+			    continue;
+        }
 				$vdirection = ($direction == GDirection::BOTH) ?$e->getTmpAttribute('DIRECTION')  :$direction;
 				$s = ($vdirection == GDirection::OUT) ? $e->getVertexTO() : $e->getVertexFrom();
 				if (!$vertexFilter($c, $s, $e, $distance)){
+					//Log::info( "#2# VERTEXFILTER SKIP VERTEX V: " . $s->id());
 					continue;
 				}
-				//Log::info( "#2# V: " . $s->id() . " P (" . $v->id() . ") D: " . $distance);
 				if (! $s->hasTmpAttribute($distanceKey)) { // if s unvisited
+					//Log::info( "#2# V: " . $s->id() . " P (" . $v->id() . ") D: " . $distance);
 					$frontier[] = $s; // PUSH // array_unshift($frontier,$s);
 					$s->setTmpAttribute($distanceKey, $distance); // mark s visited
 					$c += 1;
@@ -636,6 +715,9 @@ class GGraphO implements GGraph {
 	public function countVertices(){
 		return count($this->memV);
 	}
+	public function countEdges(){
+		return count($this->memE);
+	}
 
 
 // 	private $deletes_tracker = array();
@@ -668,6 +750,7 @@ class GGraphO implements GGraph {
 		}
 		$key = $p->id();
 		if (!empty($key)){
+			//PUtil::logInfo('UPDATE PROPERTY: ' . $p->element() . ' :: ' . $p->itemId() . " :: " . $p->value());
 			$this->updates_tracker[$key ] = array('prop'=>$p);
 		} else {
 			Log::info("updatePropertyValue error canot update property " . $p);
@@ -712,12 +795,3 @@ class GraphFilter {
 
 
 }
-
-
-
-
-
-
-
-
-

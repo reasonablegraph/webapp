@@ -147,7 +147,7 @@ class MarcImportHelper {
 		$item_ids = array();
 
 		// create new ItemMetadata object or fetch existing
-		$node_item_id = $this->itemLocateByMetadataKey(self::$objectTypes[$this->basicTag], DataFields::ea_marc_id, $this->marc_id);
+		$node_item_id = PDao::getFirstItemIdByMetadataKey(self::$objectTypes[$this->basicTag], DataFields::ea_marc_id, $this->marc_id);
 		$idata = (empty($node_item_id))
 				? new ItemMetadata()
 				: PDao::get_item_metadata($node_item_id);
@@ -165,6 +165,10 @@ class MarcImportHelper {
 				$etitle = ($sn['b'] > 0)
 						? $rgtrim($f['a'][0]->getData()) .  " " . $rgtrim($f['b'][0]->getData())
 						: $rgtrim($f['a'][0]->getData());
+
+				if ($sn['f'] > 0) {
+				    $etitle .= " " . $rgtrim($f['f'][0]->getData());
+                }
 
 				$europeana_key2 = $etitle;
 				$this->europeana['ea:europeana:type'] = 'agent';
@@ -344,7 +348,12 @@ class MarcImportHelper {
 		if ($this->isChain) {
 			// an einai chain, tote edw eimaste akoma ston kriko 0 kai 8eloume mono to marc_id sta metadata
 			// ta koina pedia 8eloume na mpoun sto kentriko subject-chain node, epomenws h processCommonTags() den kaleitai edw, alla mesa sthn createChainNode
-			$idata->addValueSK_DBK(DataFields::ea_marc_id, $this->marc_id, null, null, null, null, null, null, $w++);
+            if (empty($node_item_id)) {
+                // to marc_id to 8eloume mono an o krikos 0 den yphrxe hdh
+                // an yphrxe hdh, koybalaei to marc_id apo allo marc kombo, pi8anon apo oxi subject-chain marc
+                // an to kaname overwrite, 9a xaname ton originating marc kombo sto epomeno parse
+                $idata->addValueSK_DBK(DataFields::ea_marc_id, $this->marc_id, null, null, null, null, null, null, $w++);
+            }
 		} else {
 			// an den einai chain tote 8eloume kai ta koina pedia
 			$this->processCommonTags($idata, $w);
@@ -355,7 +364,7 @@ class MarcImportHelper {
 		
 		// sthn periptwsh poy exoume chain: create OR syndesh me yparxon
 		if ($this->isChain) { // ean einai chain kai yparxei hdh den to peirazoume
-			$node_chain_id = $this->itemLocateByMetadataKey(self::$objectTypes[$this->basicTag], DataFields::dc_title, $title);
+			$node_chain_id = PDao::getFirstItemIdByMetadataKey(self::$objectTypes[$this->basicTag], DataFields::dc_title, $title);
 			$node_item_id = (empty($node_chain_id)) ? $node_item_id : $node_chain_id;
 			// an to node_item_id einai hdh empty (dhladh o krikos 0 den yparxei hdh) tote 8a parameinei empty kai ginetai elegxos parakatw
 		}
@@ -537,25 +546,6 @@ class MarcImportHelper {
 	}
 
 
-	/* @var $st PDOStatement */
-	private function itemLocateByMetadataKey($obj_type, $element, $value) {
-		$item_id = null;
-
-		$st = $this->dbh->prepare("SELECT item_id FROM dsd.metadatavalue2 WHERE obj_type = ? AND element = ? AND text_value = ? ORDER BY item_id desc LIMIT 1");
-		$st->bindParam(1, $obj_type);
-		$st->bindParam(2, $element);
-		$st->bindValue(3, trim($value));
-		$st->execute();
-		$result = $st->fetch();
-
-		if (!empty($result)) {
-			$item_id = $result[0];
-		}
-
-		return $item_id;
-	}
-
-
 	/**
 	 *
 	 * @return ArrayObject
@@ -637,11 +627,11 @@ class MarcImportHelper {
 		}
 
 		// try to find item by searchable marc title special element
-		$item_id = $this->itemLocateByMetadataKey($obj_type, DataFields::ea_marc_search_title, $this->rgtrimSearch($title));
+		$item_id = PDao::getFirstItemIdByMetadataKey($obj_type, DataFields::ea_marc_search_title, $this->rgtrimSearch($title));
 
 		// if not found, try to match the title itself
 		if (empty($item_id)) {
-			$item_id = $this->itemLocateByMetadataKey($obj_type, DataFields::dc_title, $title);
+			$item_id = PDao::getFirstItemIdByMetadataKey($obj_type, DataFields::dc_title, $title);
 			if (empty($item_id)) { // save a new item if not found
 				$item_id = $is->insert_new_item_batch_simple();
 				$this->executeSaveGraphEdge($item_id, 'ea:marc-ref3:', $this->marc_item_id, $this->marc_id);
@@ -747,7 +737,7 @@ class MarcImportHelper {
 		$chainObjType = "subject-chain";
 		$chainTitle = implode(", ", $titles);
 
-		$chain_item_id = $this->itemLocateByMetadataKey('subject-chain', DataFields::ea_marc_id, $this->marc_id);
+		$chain_item_id = PDao::getFirstItemIdByMetadataKey('subject-chain', DataFields::ea_marc_id, $this->marc_id);
 		$chainIdata = (empty($chain_item_id))
 				? new ItemMetadata()
 				: PDao::get_item_metadata($chain_item_id);
@@ -866,7 +856,7 @@ class MarcImportHelper {
 		}
 
 		$eType = "europeana";
-		$euro_id = $this->itemLocateByMetadataKey($eType, 'ea:europeana:key1', $this->europeana['ea:europeana:key1']);
+		$euro_id = PDao::getFirstItemIdByMetadataKey($eType, 'ea:europeana:key1', $this->europeana['ea:europeana:key1']);
 		$eIdata = (empty($euro_id))
 				? new ItemMetadata()
 				: PDao::get_item_metadata($euro_id);

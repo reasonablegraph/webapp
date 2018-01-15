@@ -35,5 +35,3 @@ class GRuleOpacPrepareExpresion extends AbstractGruleProcessVertice implements G
 }
 
 
-
-?>

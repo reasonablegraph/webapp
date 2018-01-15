@@ -13,10 +13,3 @@ class  GRuleRemoveInference extends AbstractBaseRule implements  GRule {
 }
 
 
-
-
-
-
-
-
-

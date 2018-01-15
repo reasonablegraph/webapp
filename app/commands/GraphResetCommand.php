@@ -27,7 +27,12 @@ class GraphResetCommand extends Command {
 
 	public function fire() {
 
-		$context=  GGraphUtil::graphResetFull();
+		$rlock = new GRuleEngineLock();
+		$rlock->lock(null);
+
+		$context = GGraphUtil::graphResetFull();
+
+		$rlock->release();
 
 		$verbose_level = $this->option('reset-verbose-level');
 
@@ -61,12 +66,12 @@ class GraphResetCommand extends Command {
 		$this->info ("------------------------------------------");
 
 		$des2 = $graph->getInferredEdges();
-		foreach ( $des2 as $e ) {
-			if ($verbose) {
-				$this->info ($e);
-				$this->info ("");
-			}
-		}
+//		foreach ( $des2 as $e ) {
+//			if ($verbose) {
+//				$this->info ($e);
+//				$this->info ("");
+//			}
+//		}
 		$this->info ("------------------------------------------");
 
 

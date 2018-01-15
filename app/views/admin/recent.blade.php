@@ -12,10 +12,11 @@ $s = get_get('s');
 $t = get_get('t');
 $f = get_get('f');
 $ft = get_get('ft');
+$usr = get_get('usr');
 
-$orphan_flag = (!empty($f) && $f=='or' ? true : false);
-
-$org_user = (!empty($ft) && $ft=='ur' ? true : false);
+$orphan_flag = !empty($f) && $f=='or' ? true : false;
+$org_user = !empty($ft) && $ft=='org' ? true : false;
+$user_only = ($ft=='user' && $usr!='users' || $ft=='user' && !empty($usr) && $usr!='users') ? true : false;
 
 $edit_flag = false;
 $admin_flag = user_access_admin();
@@ -75,7 +76,7 @@ if (ArcApp::has_permission(Permissions::$VIEW_ITEMS_ALL_STATUS)){
 }
 
 $tok = null;
-if (! empty($t) && $admin_flag){
+if (! empty($t) /*&& $admin_flag*/){
 	$dbh = dbconnect();
 	$SQL="select 1 from dsd.obj_type where name=?";
 	$stmt = $dbh->prepare($SQL);
@@ -94,6 +95,8 @@ if ($status == Config::get('arc.ITEM_STATUS_FINISH')){
 }
 
 	$o = PUtil::reset_int(get_get("o"),0);
+	$o= $o<0?$o=0:$o;
+
 	$dbh = dbconnect();
 	$limit = 40;
 
@@ -116,6 +119,13 @@ if ($status == Config::get('arc.ITEM_STATUS_FINISH')){
 				$flags_str = sprintf("ARRAY['%s']",$flags);
 				$SQL=sprintf("SELECT %s FROM dsd.item2 i WHERE obj_type = '%s' AND flags @> %s order by i.dt_create desc, i.label offset ? limit %s",Config::get('arc.ITEM_LIST_SQL_FIELDS'), $tok, $flags_str,  $limit);
 			}
+		} elseif ($user_only){
+				if(!empty($usr)){
+					$user = $usr;
+				}else{
+					$user = ArcApp::username();
+				}
+				$SQL=sprintf("SELECT %s FROM dsd.item2 i WHERE obj_type = '%s' AND user_create = '%s' order by i.dt_create desc, i.label offset ? limit %s",Config::get('arc.ITEM_LIST_SQL_FIELDS'), $tok, $user, $limit);
 		}else{
 			$SQL=sprintf("SELECT %s FROM dsd.item2 i WHERE obj_type = '%s' order by i.dt_create desc, i.label offset ? limit %s",Config::get('arc.ITEM_LIST_SQL_FIELDS'), $tok, $limit);
 		}
@@ -145,11 +155,47 @@ if ($status == Config::get('arc.ITEM_STATUS_FINISH')){
 
 	echo('<table id="members" class="table table-striped table-bordered">');
 	echo('<thead>');
+	echo('<tr><th colspan="4" style="text-align: center;">');
+
+
+
+// 	if (!empty($usr) && $ft=='user' && $user_only ){
+// 		$back_url = '/prepo/all_users_items';
+// 	}else if( $ft=='user'){
+// 		$back_url = '/prepo/user_items';
+// 	}else{
+// 		$back_url = '/prepo/menu';
+// 	}
+
+
+// 	echo '<div class="col-md-1 col-sm-12">';
+// 	echo '<a class="ub_link" href="'.$back_url.'"><span class="glyphicon glyphicon-arrow-left"></span>&nbsp;'.tr('Back').'</a>';
+// 	echo '</div>';
+
+// 	echo '<div class="col-md-11 col-sm-12"><span class="rcn_label">';
+	$previous = $o - $limit+1;
+
+	$ft_var = !empty($ft) ? "&ft=$ft" : null;
+	$usr_var = !empty($usr) ? "&usr=$usr" : null;
+
 	if ($status == Config::get('arc.ITEM_STATUS_FINISH')){
-		printf('<tr><th colspan="4" style="text-align: center;">&nbsp;%s</th></tr>',tr('Πρόσφατες καταχωρήσεις'));
-	} else {
-		printf('<tr><th colspan="4" style="text-align: center;">&nbsp; %s (%s)</th></tr>',tr('Πρόσφατες καταχωρήσεις'),$status);
+		if($o==0){
+			printf('&nbsp;%s',tr('Recent entries'));
+		}else{
+			printf('[<a href="/archive/recent?t=%s&o=%s%s%s">%s </a>]',urlencode($tok),$previous,$ft_var,$usr_var,tr('Recent entries'));
+		}
+	}else{
+		if($o==0){
+			printf('&nbsp;%s',tr('Recent entries'));
+		}else{
+			printf('[<a href="/archive/recent?t=%s&o=%s&s=%s%s%s">%s (%s)</a>]',urlencode($tok),$previous,$status,$ft_var,$usr_var,tr('Recent entries'),$status);
+		}
 	}
+// 	echo '</span></div>';
+
+
+
+	echo("</th></tr>");
 	echo('</thead>');
 	echo('<tbody valign="top">');
 	echo("\n");
@@ -162,11 +208,11 @@ if ($status == Config::get('arc.ITEM_STATUS_FINISH')){
 	echo('</tbody>');
 	echo('<tfoot><tr><th colspan="4" style="text-align: center;">');
 #	printf('[<a href="/archive/search?m=s">Περισσότερες καταχωρίσεις</a>]');
-	$o = $o + $limit-1;
+	$next = $o + $limit-1;
 	if ($status == Config::get('arc.ITEM_STATUS_FINISH')){
-		printf('[<a href="/archive/recent?t=%s&o=%s">%s </a>]',urlencode($tok),$o,tr('Παλαιότερες καταχωρίσεις'));
+		printf('[<a href="/archive/recent?t=%s&o=%s%s%s">%s</a>]',urlencode($tok),$next,$ft_var,$usr_var,tr('Older entries'));
 	}else{
-		printf('[<a href="/archive/recent?o=%s&s=%s&t=%s">%s </a>]',$o,$status, urlencode($tok), tr('Παλαιότερες καταχωρίσεις'));
+		printf('[<a href="/archive/recent?o=%s&s=%s&t=%s%s%s">%s</a>]',$next,$status,urlencode($tok),$ft_var,$usr_var, tr('Older entries'));
 	}
 	echo("</th></tr></tfoot>\n");
 	echo('</table>');

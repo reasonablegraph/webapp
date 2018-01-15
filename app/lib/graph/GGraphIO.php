@@ -1,8 +1,8 @@
 <?php
 class GGraphIORowProc {
 
-	const METADATA_VALUE_FIELDS = "metadata_value_id,item_id,element,ref_item,text_value,text_lang,link,lid,inferred,data::text,weight,level";
-	const METADATA_VALUE_ORDER_BY = 'ORDER BY item_id,level,weight';
+	const METADATA_VALUE_FIELDS = "metadata_value_id, item_id, element, ref_item, text_value, text_lang, link, lid, inferred,data::text, weight, level, relation";
+	const METADATA_VALUE_ORDER_BY = 'ORDER BY item_id, level, weight';
 
 	/**
 	 * @var GGraphO
@@ -15,13 +15,13 @@ class GGraphIORowProc {
 	 * @param GGraphO $g
 	 */
 	public function __construct($g) {
-		Log::info('@:: GGraphIORowProc: __construct');
+		//Log::info('@:: GGraphIORowProc: __construct');
 		$this->g = $g;
 	}
 
 
 	public function finishMetadataValue() {
-		Log::info('@:: GGraphIORowProc: finishMetadataValue');
+		//Log::info('@:: GGraphIORowProc: finishMetadataValue');
 	}
 
 	public function graph() {
@@ -43,12 +43,12 @@ class GGraphIORowProc {
 
 		if (!empty($v) && empty($v->getTmpAttribute('_ND'))){
 			$v->setTmpAttribute('_ND', $nd);
-			if ($nd > 1){
-				//Log::info("@:: SET READONLY: "  . $nd . ' : ' . $v->id());
-				$v->setReadOnly();
-				Log::info("@:: SET READONLY: "  . $nd . ' : ' . $v->id() .   " : " . ($v->isReadOnly() ? 'TRUE' : 'FALSE'));
-			}
+//			if ($nd > 1){
+//				$v->setReadOnly();
+//				//Log::info("@:: SET READONLY: "  . $nd . ' : ' . $v->id() .   " : " . ($v->isReadOnly() ? 'TRUE' : 'FALSE'));
+//			}
 		}
+
 	}
 
 
@@ -63,7 +63,7 @@ class GGraphIO {
 
 
 	public static function addItemToGraph($graph, $item_id) {
-		Log::info("##addItemToGraph");
+		//Log::info("##addItemToGraph");
 // 		$elements = Config::get('arc_rules.DEFAULT_GRAPH_ROOT_ELEMENTS_LOAD', array('dc:title:','ea:obj-type:','ea:status:' ));
 // 		$sep = '';
 // 		$elementsString = '';
@@ -99,7 +99,7 @@ class GGraphIO {
 	 * @param Long[] $ids
 	 * @param GGraph $graph
 	 */
-	public static function loadGraph($graph = null, $inferredFlag = false) {
+	public static function loadGraph($graph = null, $inferredFlag = false,$only_test_nodes=false) {
 		//Log::info('##loadGraph:');
 		if ($graph == null) {
 			$graph = new GGraphO();
@@ -126,16 +126,23 @@ class GGraphIO {
 		$con = dbconnect();
 		$proc = new GGraphIORowProc($graph);
 
+		if (!$only_test_nodes) {
+			$only_test_nodes_query = '';
+		} else{
+			$only_test_nodes_query = "AND item_id in (SELECT i.item_id FROM dsd.item2 i JOIN dsd.metadatavalue2 v ON (i.item_id = v.item_id AND v.element = 'ea:test:key1' )  )";
+		}
+
 		$elementsStringOk = '';
 		if ($elementsString){
 			$elementsStringOk = sprintf(' AND element in (%s) ',$elementsString);
 		}
 			//--AND link is null
 		$SQL = sprintf("SELECT %s FROM dsd.metadatavalue2
-				WHERE obj_class in (%s)
+				WHERE obj_class in (%s) 
 				%s
 				%s
-				", GGraphIORowProc::METADATA_VALUE_FIELDS, $otsString, $elementsStringOk, GGraphIORowProc::METADATA_VALUE_ORDER_BY);
+				%s
+				", GGraphIORowProc::METADATA_VALUE_FIELDS, $otsString, $elementsStringOk,$only_test_nodes_query, GGraphIORowProc::METADATA_VALUE_ORDER_BY);
 
 		//Log::info($SQL);
 		$st = $con->prepare($SQL);
@@ -145,15 +152,17 @@ class GGraphIO {
 			$proc->processMetadataValueRow($row);
 		}
 		//Log::info('##loadGraph: finishMetadataValue');
+
 		$proc->finishMetadataValue();
 
 
 		$loadInferneceFromJsonFlag = Config::get('arc.GRAPH_LOAD_INFERENCE_FROM_JSON', 0) >0;
 
-			$SQL = sprintf("SELECT item_id,jdata FROM dsd.item2
-					WHERE obj_class in (%s)
-					", $otsString);
-			//Log::info($SQL);
+		$JOIN = $only_test_nodes ? "JOIN dsd.metadatavalue2 v ON (i.item_id = v.item_id AND v.element = 'ea:test:key1' )" : '';
+			$SQL = sprintf("SELECT i.item_id,i.jdata FROM dsd.item2 i %s
+					WHERE i.obj_class in (%s) AND i.status <> 'error'
+					", $JOIN, $otsString);
+			Log::info($SQL);
 			$st = $con->prepare($SQL);
 			$st->execute();
 			while ( $row = $st->fetch(PDO::FETCH_ASSOC) ) {
@@ -181,6 +190,23 @@ class GGraphIO {
 					}
 				}
 			}
+
+
+
+		$vertices = $graph->getVertices();
+		/* @var $v GVertex */
+		foreach ($vertices as $v){
+			$status = $v->getPropertyValue('ea:status:');
+			if ($status == 'error'){
+				Log::info("@@: REMOVE VERTEX status error:  " . $v->urnStr());
+				$graph->removeVertex($v->urnStr());
+//			}elseif (!$v->hasProperties()){
+//				Log::info("@@: REMOVE ZERO VERTEX:  " . $v->urnStr());
+//				$graph->removeVertex($v->urnStr());
+			}
+		}
+
+
 
 		// $count = $graph->countVertices();
 		// Log::info("LOAD $count VERTICES");
@@ -245,7 +271,7 @@ class GGraphIO {
 			$sep = ', ';
 		}
 		$q = $q . ')';
-		//Log::info("XX###: #Qf1: ".$q);
+	//	Log::info("XX###: #Qf1: ".$q);
 
 		// if ($c == 0){
 		// return null;
@@ -281,9 +307,9 @@ class GGraphIO {
 	 * @throws Exception
 	 */
 	public static function loadNodeNeighbourhood($item_id, $item_refs = null, $graph = null, $action = null) {
-		Log::info('@:: loadNodeNeighbourhood: ' . $item_id . ' : action: ' . $action . (empty($item_refs) ? '' : ' : ' . implode(',',$item_refs)));
+	//	PUtil::logRed('@:: loadNodeNeighbourhood: ' . $item_id . ' : action: ' . $action . (empty($item_refs) ? '' : ' : ' . implode(',',$item_refs)));
 
-		$item_id = intval($item_id);
+		$item_id = (int)$item_id;
 
 		$con = dbconnect();
 		//$con =  prepareService();
@@ -313,7 +339,7 @@ class GGraphIO {
 		}
 
 		$item_refs_csv = implode(', ', $item_refs);
-		Log::info('loadNodeNeighbourhood: ' . $item_id . ' : ' . $item_refs_csv);
+		//Log::info('loadNodeNeighbourhood: ' . $item_id . ' : ' . $item_refs_csv);
 		$q = 'in (' . $item_refs_csv .')';
 
 		$elementsStringOk = '';
@@ -332,12 +358,12 @@ class GGraphIO {
 				UNION (SELECT ref_item as neigh from dsd.metadatavalue2 where item_id = %s and ref_item is not null and not inferred) ) as foo
 			) %s
 			" , GGraphIORowProc::METADATA_VALUE_FIELDS, $otsString, $elementsStringOk, $q, $item_id,$item_id, GGraphIORowProc::METADATA_VALUE_ORDER_BY);
-// 		Log::info("@:: #item_id: " . $item_id);
-// 		Log::info("@:: #item_refs: " . implode(',' , $item_refs));
-//		Log::info('@:: #SQL1: ' . $SQL);
+//			Log::info("@:: #item_id: " . $item_id);
+//	    Log::info("@:: #item_refs: " . implode(',' , $item_refs));
+//			Log::info('@:: #SQL1: ' . $SQL);
 		$st = $con->query($SQL);
 		while ( $row = $st->fetch(PDO::FETCH_ASSOC) ) {
-		//Log::info($row['item_id'] . " | " . $row['element'] . " | " . $row['ref_item'] . ' | ' . $row['text_value']);
+			//Log::info($row['item_id'] . " | " . $row['element'] . " | " . $row['ref_item'] . ' | ' . $row['text_value']);
 			$proc->processMetadataValueRow($row,1);
 		}
 
@@ -355,9 +381,9 @@ class GGraphIO {
 				)) as foo
 			) %s
 			" , GGraphIORowProc::METADATA_VALUE_FIELDS, $otsString, $elementsStringOk, $q, $item_id,$item_id, GGraphIORowProc::METADATA_VALUE_ORDER_BY);
-//		 	Log::info("@:: #item_id: " . $item_id);
-//		 	Log::info("@:: #item_refs: " . implode(',' , $item_refs));
-//			Log::info('@:: #SQL2: ' . $SQL);
+//			  Log::info("@:: #item_id: " . $item_id);
+//			  Log::info("@:: #item_refs: " . implode(',' , $item_refs));
+//				Log::info('@:: #SQL2: ' . $SQL);
 		$st = $con->query($SQL);
 		while ( $row = $st->fetch(PDO::FETCH_ASSOC) ) {
 			//Log::info($row['item_id'] . " | " . $row['element'] . " | " . $row['ref_item'] . ' | ' . $row['text_value']);
@@ -377,7 +403,7 @@ class GGraphIO {
 				UNION (SELECT ref_item as neigh from dsd.metadatavalue2 where item_id = %s and ref_item is not null and not inferred) ) as foo
 			)
 			" , $otsString, $q, $item_id,$item_id);
-		///	Log::info("@:: #SQL3: " . $SQL);
+			//Log::info("@:: #SQL3: " . $SQL);
 		$st = $con->query($SQL);
 		while ( $row = $st->fetch(PDO::FETCH_ASSOC) ) {
 			$v = $graph->getVertex(GURN::createOLDWithId($row['item_id']));
@@ -388,9 +414,10 @@ class GGraphIO {
 		}
 
 
+
 		$SQL = sprintf("
 			SELECT item_id,jdata, flags_json FROM dsd.item2
-			WHERE obj_class in (%s)
+			WHERE obj_class in (%s) AND status <> 'error'
 			AND  item_id  in (
 			SELECT  distinct neigh FROM(
 				SELECT json_array_elements(jdata->'neighbourhood'->'item')::varchar::bigint as neigh from dsd.item2 WHERE item_id in
@@ -400,8 +427,8 @@ class GGraphIO {
 				)) as foo
 			)
 			" , $otsString, $q, $item_id, $item_id);
-			//Log::info('@:: #SQL4: ' . $SQL);
-			//Log::info("@:: #PARAMS: " . $otsString . ' : ' . $q . ' : ' . $item_id . ' : ' . $item_id);
+//			Log::info('@:: #SQL4: ' . $SQL);
+//			Log::info("@:: #PARAMS: " . $otsString . ' : ' . $q . ' : ' . $item_id . ' : ' . $item_id);
 // 		$st = $con->prepare($SQL);
 // 		$st->execute();
 		$st = $con->query($SQL);
@@ -418,7 +445,26 @@ class GGraphIO {
 			$vroot->setTmpAttribute('_ND', 'ROOT');
 		}
 
-		GGraphUtil::removeZeroVertices($graph);
+
+		$vertices = $graph->getVertices();
+		/* @var $v GVertex */
+		foreach ($vertices as $v){
+			$status = $v->getPropertyValue('ea:status:');
+			if ($status == 'error'){
+				Log::info("@@: REMOVE VERTEX status error:  " . $v->urnStr());
+				$graph->removeVertex($v->urnStr());
+			}elseif (!$v->hasProperties()){
+				Log::info("@@: REMOVE ZERO VERTEX:  " . $v->urnStr());
+				$graph->removeVertex($v->urnStr());
+			} else {
+				$nd = $v->getTmpAttribute('_ND');
+				if (!empty($nd) && $nd != 'ROOT' && $nd > 1 && (!in_array($v->id(),$item_refs)) ){
+					$v->setReadOnly();
+				}
+			}
+		}
+
+		//GGraphUtil::removeZeroVertices($graph);
 		return $graph;
 	}
 
@@ -539,9 +585,9 @@ class GGraphIO {
 				", GGraphIORowProc::METADATA_VALUE_FIELDS, $otsString, $elementsStringOk, GGraphIORowProc::METADATA_VALUE_ORDER_BY);
 		}
 
-		//Log::info("#SQL: " . $SQL);
-		//Log::info("#item_id: " . $item_id);
-		//Log::info("#item_refs: " . implode(',' , $item_refs));
+//		Log::info("#@ SQL: " . $SQL);
+//		Log::info("#@ item_id: " . $item_id);
+//		Log::info("#@ item_refs: " . implode(',' , $item_refs));
 		$st = $con->prepare($SQL);
 		if (! empty($item_id)) {
 			$st->bindParam(1, $item_id);

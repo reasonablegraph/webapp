@@ -10,7 +10,7 @@ class  GRuleParentElement  extends AbstractBaseRule implements  GRule {
 	*/
 	public function __construct($context) {
 		parent::__construct($context);
-		Log::info("GRuleParentElement INIT");
+		//Log::info("GRuleParentElement INIT");
 // 		$con = dbconnect();
 // 		$SQL ='SELECT element,parent_element from dsd.item_relation_type where parent_element is not null';
 // 		$st = $con->prepare($SQL);
@@ -57,5 +57,4 @@ class  GRuleParentElement  extends AbstractBaseRule implements  GRule {
 	}
 
 }
-
 

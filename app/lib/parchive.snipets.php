@@ -38,6 +38,7 @@ class PSnipets {
 
 	public static function solr_paging_text( $numPages, $resultsPerPage ) {
 
+
 		if ($numPages == 1 || $numPages == 0){
 			return;
 		}
@@ -50,11 +51,13 @@ class PSnipets {
 			$currentStart = 0;
 		}
 
+
 		$pageNo = floor($currentStart/$resultsPerPage) + 1;
 		$next_page_start = $currentStart + $resultsPerPage;
 		$url_next_page = http_build_query(array_merge($input_copy, array('start' => $next_page_start)));
 		$previous_page_start = $currentStart - $resultsPerPage;
 		$url_previous_page = http_build_query(array_merge($input_copy, array('start' => $previous_page_start)));
+
 
 		echo('<div class="pager">');
 			if ($pageNo > 1){
@@ -74,6 +77,158 @@ class PSnipets {
 
 	}
 
+
+
+
+	public static function solrPagination($page = 1, $totalitems, $limit = 30){
+
+			$adjacents = 2; //number of 'current' neighboohood
+			$prev = $page - 1;
+			$next = $page + 1;
+			$lastpage = ceil($totalitems / $limit);
+			$lpm1 = $lastpage - 1;
+
+			$input_vars = Input::all();
+			$url_next_page = http_build_query(array_merge($input_vars, array('page' => $next)));
+			$url_previous_page = http_build_query(array_merge($input_vars, array('page' => $prev)));
+
+
+			$pagination = "";
+			if($lastpage > 1){
+				$pagination .= "<div class=\"pager sresult\">";
+
+				//PREVIOUS
+				if ($page > 1){
+					$pagination .= "<a class=\"prev\" href=\"?$url_previous_page\">&larr; ". tr('Previous page')."</a>";
+				}else{
+					$pagination .= "<span class=\"disabled\"><a class=\"prev\" href=\"#\"> &larr; ".tr('Previous page')."</a></span>";
+				}
+
+				//PAGES
+				if ($lastpage < 7 + ($adjacents * 2)){
+						for ($counter = 1; $counter <= $lastpage; $counter++){
+							if ($counter == $page){
+								$pagination .= "<span class=\"current\">$counter</span>";
+							}else{
+								$url = http_build_query(array_merge($input_vars, array('page' => $counter)));
+								$pagination .= "<a class=\"page_link\" href=\"?$url\">$counter</a>";
+							}
+						}
+				}elseif($lastpage >= 7 + ($adjacents * 2)){
+
+						if($page < 1 + ($adjacents * 3)){
+							for ($counter = 1; $counter < 5 + ($adjacents * 2); $counter++){ //< 4 + ($adjacents * 2)
+								if ($counter == $page){
+									$pagination .= "<span class=\"current\">$counter</span>";
+								}else{
+									$url = http_build_query(array_merge($input_vars, array('page' => $counter)));
+									$pagination .= "<a class=\"page_link\" href=\"?$url\">$counter</a>";
+								}
+							}
+							$pagination .= "<span class=\"elipses\">...</span>";
+							$url = http_build_query(array_merge($input_vars, array('page' => $lpm1)));
+							$pagination .= "<a class=\"page_link\" href=\"?$url\">$lpm1</a>";
+							$ur2 = http_build_query(array_merge($input_vars, array('page' => $lastpage)));
+							$pagination .= "<a class=\"page_link\" href=\"?$ur2\">$lastpage</a>";
+
+						}elseif($lastpage - ($adjacents * 2) > $page && $page > ($adjacents * 2)){
+							$url = http_build_query(array_merge($input_vars, array('page' => 1)));
+							$pagination .= "<a class=\"page_link\" href=\"?$url\">1</a>";
+							$ur2 = http_build_query(array_merge($input_vars, array('page' => 2)));
+							$pagination .= "<a class=\"page_link\" href=\"?$ur2\">2</a>";
+							$pagination .= "<span class=\"elipses\">...</span>";
+							for ($counter = $page - $adjacents; $counter <= $page + $adjacents; $counter++){
+								if ($counter == $page){
+									$pagination .= "<span class=\"current\">$counter</span>";
+								}else{
+									$url = http_build_query(array_merge($input_vars, array('page' => $counter)));
+									$pagination .= "<a class=\"page_link\" href=\"?$url\">$counter</a>";
+								}
+							}
+							$pagination .= "...";
+							$url = http_build_query(array_merge($input_vars, array('page' => $lpm1)));
+							$pagination .= "<a class=\"page_link\" href=\"?$url\">$lpm1</a>";
+							$ur2 = http_build_query(array_merge($input_vars, array('page' => $lastpage)));
+							$pagination .= "<a class=\"page_link\" href=\"?$ur2\">$lastpage</a>";
+
+						}else{
+							$url = http_build_query(array_merge($input_vars, array('page' => 1)));
+							$pagination .= "<a class=\"page_link\" href=\"?$url\">1</a>";
+							$ur2 = http_build_query(array_merge($input_vars, array('page' => 2)));
+							$pagination .= "<a class=\"page_link\" href=\"?$ur2\">2</a>";
+							$pagination .= "<span class=\"elipses\">...</span>";
+							for ($counter = $lastpage - (1 + ($adjacents * 3)); $counter <= $lastpage; $counter++){
+								if ($counter == $page){
+									$pagination .= "<span class=\"current\">$counter</span>";
+								}else{
+									$url = http_build_query(array_merge($input_vars, array('page' => $counter)));
+									$pagination .= "<a class=\"page_link\" href=\"?$url\">$counter</a>";
+								}
+							}
+						}
+
+				}
+
+				//NEXT
+				if ($page < $counter - 1){
+					$pagination .= "<a class=\"next\" href=\"?$url_next_page\">". tr('Next page')." &rarr; </a>";
+				}else{
+					$pagination .= "<span class=\"disabled\"><a class=\"next\" href=\"#\">". tr('Next page')." &rarr;</a></span>";
+				}
+
+				$pagination .= "<div class=\"page_point\">".tr('page')." ".$page." ".tr('from')." ".$lastpage."</div>";
+				$pagination .= "</div>\n";
+			}
+
+			echo $pagination;
+
+	}
+
+
+
+	public static function admin_paging( $limit, $offset, $total) {
+
+		$previous = $offset - $limit;
+		$hasprevious = ($offset-$limit >= 0) ? true : false;
+		$next = ($offset + $limit < $total) ? $offset + $limit : false;
+
+		$pageNo = floor($offset/$limit) + 1;
+		$numPages = ceil($total / $limit);
+
+		if ($numPages == 1 || $numPages == 0){
+			return;
+		}
+
+		$input_param = Input::all();
+		if(!empty($input_param['o'])){
+			$currentStart = $input_param['o'];
+			unset($input_param['o']);
+		}else{
+			$currentStart = 0;
+		}
+
+		$next_page_start = $currentStart + $limit;
+		$url_next_page = http_build_query(array_merge($input_param, array('o' => $next_page_start)));
+		$previous_page_start = $currentStart - $limit;
+		$url_previous_page = http_build_query(array_merge($input_param, array('o' => $previous_page_start)));
+
+		echo('<div class="pager">');
+		if ($pageNo > 1){
+			printf('<span><a href="?%s">&larr; %s</a></span>',$url_previous_page,tr('Previous page'));
+		}else{
+			echo(' <span class="disabled" aria-hidden="true" ><a href="#">&larr; ' .tr('Previous page') .'</a></span>');
+		}
+
+		if ($numPages > $pageNo){
+			printf('<span class="currpage pager_l">%s %s %s %s</span><span class="pager_l" >
+				<a href="?%s">%s &rarr;</a></span>',tr('page'),$pageNo,tr('from'),$numPages,$url_next_page,tr('Next page'));
+		}else{
+			printf(' <span class="currpage pager_l">%s %s %s %s</span> <span class="pager_l disabled" aria-hidden="true">
+				<a href="#">%s &rarr;</a></span>',tr('page'),$pageNo,tr('from'),$numPages,tr('Next page'));
+		}
+		echo('</div>');
+
+	}
 
 
 
@@ -194,7 +349,7 @@ class PSnipets {
 				$sep = '';
 			foreach ($counters as $count_obj_type => $count){
 			echo ($sep); $sep = ', ';
-			printf(' %s <a href="%s">%s</a>',$count, Putil::replaceRelativeUrlGetParams(array('ot'=>$count_obj_type)),  trChoise($count_obj_type . 's',$count));
+			printf(' %s <a href="%s">%s</a>',$count, Putil::replaceRelativeUrlGetParams(array('ot'=>$count_obj_type,'o'=>0)),  trChoise($count_obj_type . 's',$count));
 					///$count_obj_type
 			}
 
@@ -1583,9 +1738,3 @@ class FormSnipets {
 
 
 }
-
-
-
-
-
-?>

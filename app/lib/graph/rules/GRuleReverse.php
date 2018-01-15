@@ -43,5 +43,3 @@ class GRuleReverse   extends AbstractGruleProcessVertice implements  GRule {
 
 
 
-
-?>

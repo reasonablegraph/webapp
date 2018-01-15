@@ -2,10 +2,23 @@
 <?php auth_check_mentainer(); ?>
 
 <?php
-
 drupal_add_js("/_assets/js/putil.js");
-
 ?>
+
+<script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
+<script src="//code.jquery.com/ui/1.10.4/jquery-ui.min.js"></script>
+<link rel="stylesheet" type="text/css" href="//code.jquery.com/ui/1.10.4/themes/redmond/jquery-ui.css">
+<script src="<?php echo Config::get('arc.ARCHIVE_ASSETS_PATH');?>vendor/jquery-colorbox/jquery.colorbox.js"></script>
+<link rel="stylesheet" type="text/css" href="<?php echo Config::get('arc.ARCHIVE_ASSETS_PATH');?>vendor/jquery-colorbox/example5/colorbox.css">
+
+<script type="text/javascript">
+	$(function () {
+	    $(".clear_form").click(function() {
+	        $(this).closest('form').find("input[type=text], textarea").val("");
+	    });
+	});
+	</script>
+
 
 <style>
 div.col1 {
@@ -62,10 +75,11 @@ table.create   {
 </style>
 
 
+@include('includes.edit_step3-flashes')
 
 <div class="row">
 	<div class="panel panel-default">
-		<div class="panel-heading"><?= $m!='a' ? tr('Search in Repository') : tr('Advance search in Repository');?> <?=tr(Config::get('arc.INSTALLATION_LEGEND')) ?></div>
+		<div class="panel-heading"><?= $m!='a' ? tr(Config::get('arc.SEARCH_FORM_LEGEND')) : tr('Advance search in Repository');?> <?=tr(Config::get('arc.INSTALLATION_LEGEND')) ?></div>
 		<div class="panel-body">
 
 			<form method="get" class="arch-sform  form-horizontal" role="form">
@@ -79,7 +93,7 @@ table.create   {
 
 
 				 <div class="col-md-10">
-		   		 <label for="terms" class="col-md-2 control-label"><?=tr('Term field')?>:</label>
+		   		 <label for="terms" class="col-md-2 control-label"><?=tr('Term field2')?>:</label>
 					 <input id="terms" class="col-md-10 form-search" type="text" name="t" value="<?php echo($ss)?>" placeholder="<?=tr('Import term')?>" />
 			  </div>
 
@@ -145,7 +159,8 @@ table.create   {
 			<div class="col-md-10">
 		   <div class="col-md-10  col-md-offset-2 search-buttons " >
 				<button type="submit" value="search" class="btn btn-default" ><?=tr('Search')?></button>
-				<button name="clear" value="clear" onclick="clearForm(this.form);" class="btn btn-default" ><?=tr('Clear')?></button>
+				<?php //<button name="clear" value="clear" onclick="clearForm(this.form);" class="btn btn-default" >Clear</button> ?>
+				<button name="clear" value="clear" class="clear_form btn btn-default"  >{{tr('Clear')}}</button>
 			</div>
 			</div>
 			  <!-- <div class="col-md-7 col-md-offset-2">
@@ -186,6 +201,7 @@ table.create   {
 
 
 <?php
+
 	//NEW ITEMS MENU
 	$conf = null;
 // 	if (! empty($username)){
@@ -227,8 +243,20 @@ table.create   {
 				printf('<thead><tr><th colspan="12" style="text-align: center;">%s</th></tr></thead>',tr($i));
 				foreach($l as $ii=>$ll){
 								echo("<tr>");
-								foreach($ll as $obj_type=>$label){
-									echo("<td><a href='/prepo/edit_step1?br=2&rd=$obj_type'>$label</a></td>");
+								foreach($ll as $label => $obj_type){
+									if (is_array($obj_type)){
+										$rd = $obj_type['obj_type'];
+										$url = UrlPrefixes::$item_edit_step1."?br=2&rd=$rd";
+										if (!empty($obj_type['parameter'])){
+											$parameter = $obj_type['parameter'];
+											foreach($parameter as $name => $value ){
+											$url .= "&$name=$value";
+											}
+										}
+										echo("<td><a href='$url'>$label</a></td>");
+									}else{
+										echo("<td><a href='/prepo/edit_step1?br=2&rd=$obj_type'>$label</a></td>");
+									}
 								}
 								echo("</tr>");
 				}
@@ -263,11 +291,11 @@ table.create   {
 	<thead>
 		<th style="text-align: center; background: #E5E5E5; padding: 6px !important;" colspan="12">
 			<?php
-			$total_cnt = count($results);
-			if ($total_cnt == 0){
+			//$total_cnt = count($results);
+			if ($total_res_cnt == 0){
 				printf("%s.",tr('No entries found'));
 			}else{ ?>
-				{{trChoise('Found',$total_cnt)}} <strong>{{$total_cnt}}</strong> {{trChoise('Entry',$total_cnt)}}:
+				{{trChoise('Found',$total_res_cnt)}} <strong>{{$total_res_cnt}}</strong> {{trChoise('Entry',$total_res_cnt)}}:
 			<?php
 			} ?>
 		</th>
@@ -285,19 +313,23 @@ table.create   {
 
 
 <?php
-if (empty($ss)){
+//if (empty($ss)){
 			echo('</tbody>');
 			echo('<tfoot><tr><th colspan="4" style="text-align: center;">');
-			$new_rec = $o - $limit;
-			if ($new_rec >= 0){
-				printf('[<a href="%s?o=%s"> %s </a>]&nbsp&nbsp',UrlPrefixes::$cataloging, $new_rec, tr('Newer records'));
-			}
-			$old_rec = $o + $limit;
-			if(! ($total_cnt < $limit)){
-				printf('[<a href="%s?o=%s"> %s </a>]',UrlPrefixes::$cataloging, $old_rec, tr('Older records'));
-			}
+
+// 			$new_rec = $o - $limit;
+// 			if ($new_rec >= 0){
+// 				printf('[<a href="%s?o=%s"> %s </a>]&nbsp&nbsp',UrlPrefixes::$cataloging, $new_rec, tr('Newer records'));
+// 			}
+// 			$old_rec = $o + $limit;
+// 			if(! ($total_cnt < $limit)){
+// 				printf('[<a href="%s?o=%s"> %s </a>]',UrlPrefixes::$cataloging, $old_rec, tr('Older records'));
+// 			}
+
+			PSnipets::solrPagination($page, $total_res_cnt, $limit);
+
 			echo("</th></tr></tfoot>\n");
-}
+//}
 	?>
 
 

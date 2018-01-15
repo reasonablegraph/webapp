@@ -91,7 +91,7 @@ jQuery(document).ready(function($) {
 
 		<div class="form-group">
 		    <div class="col-md-10">
-		    <label for="terms" class="col-md-2 control-label"><?=tr('Term field')?>:</label>
+		    <label for="terms" class="col-md-2 control-label"><?=tr('Term field1')?>:</label>
 				<input  class="col-md-10  <?=$terms_class?> form-search" type="text" name="t" value="<?php echo($ss)?>" placeholder="<?=tr('Import term')?>" />
 			</div>
 		    <div class="col-md-2">
@@ -210,7 +210,7 @@ jQuery(document).ready(function($) {
 				<?php if ($m == 's'){ ?>
 					<?php if (variable_get('arc_search_display_advance_link')): ?>
 						<!-- <a class="m_search_link"  href="/archive/search?m=a&lang=<?=$lang?>"><?=tr('Advance search')?></a>-->
-						<a class="m_search_link"  href="/archive/search_s<?php echo $term_search_flag ?  "?&term=$ss&submit=search" : null ;?>"><?=tr('Advance search')?></a>
+						<a class="m_search_link"  href="/archive/search2<?php echo $term_search_flag ?  "?&term=$ss&submit=search" : null ;?>"><?=tr('Advance search')?></a>
 					<?php endif ?>
 				<?php  } else { ?>
 					<a class="m_search_link" href="/archive/search?lang=><?=$lang?>"><?=tr('Simple search')?></a>

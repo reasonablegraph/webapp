@@ -65,6 +65,14 @@ return array(
 						<label>{{{label_sr}}}</label>
 									{{#object_type}}{{object_type}}{{/object_type}}',
 
+'one_line_relation' => '
+							<label>{{{label_sr}}}</label>
+									{{#line_list}}
+										<ol>
+											{{#link_list}}<li>{{#url}}<a href="{{url}}" >{{title}}</a>{{/url}}{{^url}}{{title}}{{/url}}</li>{{/link_list}}
+										</ol>
+									{{/line_list}}',
+
 'one_label_line' => '
 									<label>{{{label_sr}}}</label>
 										{{#line_list}}
@@ -80,6 +88,18 @@ return array(
 											{{#link_list}}<li><a class="{{class}}" href="{{url}}" target="_blank">{{#description}}{{description}}{{/description}}{{^description}}{{value}}{{/description}}</a></li>{{/link_list}}
 										</ol>
 									{{/line_list}}',
+
+
+'one_label_line_multi' => '
+		{{#ex_array}}
+						{{#ex_list}}
+								{{#label}}
+										<li><label>{{label}}</label>
+											<ol>{{#link_list}}<li>{{value}}</li> {{/link_list}} </ol>
+										</li>
+								{{/label}}
+						{{/ex_list}}
+		{{/ex_array}}',
 
 
 'oneline' => '

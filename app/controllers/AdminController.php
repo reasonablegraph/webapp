@@ -2,17 +2,20 @@
 class AdminController extends BaseController {
 
 
-	function parchive_recent() {
+	public function parchive_recent() {
 
 		auth_check_mentainer();
 
 		if (isset($_GET['json'])) {
-
 			$out = array();
 			$dbh = dbconnect();
 			// $obj_type_names = get_object_type_names($dbh);
-
-			$SQL = sprintf("SELECT %s FROM  dsd.item2 i WHERE status='finish' order by i.dt_create desc, i.label limit 80", Config::get('arc.ITEM_LIST_SQL_FIELDS'));
+      $CRITERIA = '';
+			$SQL = sprintf("
+      SELECT %s
+      FROM  dsd.item2 i
+      WHERE i.status in ('finish','hidden','private') %s
+      ORDER BY i.dt_create desc, i.label limit 80",  Config::get('arc.ITEM_LIST_SQL_FIELDS'), $CRITERIA);
 			$stmt = $dbh->prepare($SQL);
 			$stmt->execute();
 
@@ -433,7 +436,7 @@ class AdminController extends BaseController {
 		$flags = array('IS:actor','OT:auth-person','OT:auth-organization','OT:auth-family');
 		$limit = 30;
 
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1253,8 +1256,48 @@ class AdminController extends BaseController {
 		$stmt = $dbh->prepare($SQL);
 		$stmt->bindParam(1, $s);
 		$stmt->execute();
+
 		// drupal_add_http_header('Location', '/prepo/submits');
 		$URL = '/prepo/submits';
+		$f = get_get("f");
+		if (!empty($f) && $f == "a") {
+			$URL = '/prepo/submitsactive';
+		}
+		if (!empty($f) && $f == "e") {
+			$URL = '/prepo/submitserror';
+		}
+
+		$response = Response::make('', 301);
+		$response->header('Location', $URL);
+		return $response;
+	}
+
+
+	function parchive_finish_submit() {
+		auth_check_mentainer();
+
+		$s = null;
+		$s = get_get("s");
+		if (empty($s)) {
+			return;
+		}
+
+		$dbh = dbconnect();
+		$SQL = "UPDATE dsd.submits SET status = ? WHERE id = ?";
+		$stmt = $dbh->prepare($SQL);
+		$stmt->bindParam(1, SubmitsStatus::$finished);
+		$stmt->bindParam(2, $s);
+		$stmt->execute();
+
+		$URL = '/prepo/submits';
+		$f = get_get("f");
+		if (!empty($f) && $f == "a") {
+			$URL = '/prepo/submitsactive';
+		}
+		if (!empty($f) && $f == "e") {
+			$URL = '/prepo/submitserror';
+		}
+
 		$response = Response::make('', 301);
 		$response->header('Location', $URL);
 		return $response;
@@ -1381,13 +1424,69 @@ class AdminController extends BaseController {
 
 		$flags = array('OT:auth-work');
 		$limit = 30;
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
 		$response->header('Content-Type', 'application/json');
 		return $response;
 	}
+
+
+	function ws_search_periodic(){
+
+		$term = get_get("term");
+		if (empty($term)) {
+			return AdminController::ws_empty_json_response();
+		}
+
+		$flags = array('OT:periodic');
+		$limit = 30;
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
+
+		$response = Response::make($rep, 200);
+		$response->header('Cache-Control', 'no-cache, must-revalidate');
+		$response->header('Content-Type', 'application/json');
+		return $response;
+	}
+
+
+
+	function ws_search_periodic_title(){
+
+		$term = get_get("term");
+		if (empty($term)) {
+			return AdminController::ws_empty_json_response();
+		}
+
+		$flags = array('OT:periodic');
+		$limit = 30;
+		$rep  =  PDao::find_node_for_title($term,$flags,$limit, false, 'label2');
+
+		$response = Response::make($rep, 200);
+		$response->header('Cache-Control', 'no-cache, must-revalidate');
+		$response->header('Content-Type', 'application/json');
+		return $response;
+	}
+
+
+	function 	ws_search_issue(){
+
+		$term = get_get("term");
+		if (empty($term)) {
+			return AdminController::ws_empty_json_response();
+		}
+
+		$flags = array('IS:issue');
+		$limit = 30;
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
+
+		$response = Response::make($rep, 200);
+		$response->header('Cache-Control', 'no-cache, must-revalidate');
+		$response->header('Content-Type', 'application/json');
+		return $response;
+	}
+
 
 	function ws_search_expression(){
 		$term = get_get("term");
@@ -1401,7 +1500,7 @@ class AdminController extends BaseController {
 
 		$flags = array('OT:auth-expression');
 		$limit = 30;
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1421,7 +1520,7 @@ class AdminController extends BaseController {
 
 		$flags = array('OT:auth-work','OT:auth-expression');
 		$limit = 30;
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1442,7 +1541,7 @@ class AdminController extends BaseController {
 
 		$flags = array('OT:auth-manifestation');
 		$limit = 30;
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1485,7 +1584,7 @@ class AdminController extends BaseController {
 
 		$flags = array('IS:item');
 		$limit = 30;
-		$rep  =  PDao::find_node_for_artifact($term,$flags ,true,$limit);
+		$rep  =  PDao::find_node_for_artifact($term,$flags ,true,$limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1504,7 +1603,7 @@ class AdminController extends BaseController {
 
 		$flags = array('OT:auth-person');
 		$limit = 30;
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1520,7 +1619,7 @@ class AdminController extends BaseController {
 // 		if (empty($term)) {
 // 			return;
 // 		}
-		$flags = array('OT:digital-item','ORPHAN');
+		$flags = array('OT:digital-item','OT:physical-item','ORPHAN');
 		$limit = 30;
 		$search_init = true;
 
@@ -1555,7 +1654,7 @@ class AdminController extends BaseController {
 		$flags = array('OT:periodic-publication');
 		$limit = 30;
 
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true, $limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true, $limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1574,7 +1673,7 @@ class AdminController extends BaseController {
 		$flags = array('OT:web-site-instance');
 		$limit = 30;
 
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true, $limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true, $limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1593,7 +1692,7 @@ class AdminController extends BaseController {
 		$flags = array('OT:media');
 		$limit = 30;
 
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true, $limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true, $limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1625,7 +1724,7 @@ class AdminController extends BaseController {
 
 		$flags = array('OT:web-site-instance','OT:periodic-publication','OT:auth-manifestation','OT:media');
 		$limit = 30;
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1642,7 +1741,7 @@ class AdminController extends BaseController {
 
 		$flags = array('OT:auth-family');
 		$limit = 30;
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1659,7 +1758,7 @@ class AdminController extends BaseController {
 
 		$flags = array('OT:auth-organization');
 		$limit = 30;
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1676,7 +1775,7 @@ class AdminController extends BaseController {
 
 		$flags = array('OT:auth-place');
 		$limit = 30;
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1694,7 +1793,7 @@ class AdminController extends BaseController {
 
 		$flags = array('OT:auth-person','OT:auth-organization','OT:auth-family','OT:auth-work','OT:auth-general','OT:auth-concept','OT:auth-object','OT:auth-event','OT:auth-place','OT:auth-genre');
 		$limit = 30;
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1717,7 +1816,7 @@ class AdminController extends BaseController {
 
 		$flags = array('OT:auth-general','OT:auth-concept','OT:auth-object','OT:auth-event','OT:auth-place','OT:auth-genre');
 		$limit = 30;
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1745,8 +1844,8 @@ class AdminController extends BaseController {
 			} else {
 					$flags = array("IS:$obj_type_map[$key]");
 			}
-			$limit = 30;
-			$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit);
+			$limit = 100;
+			$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit,false, 'label2'); //'label'
 		}else{
 			Log::info("Key '$key' does not exist in 'primary_subject_obj_type_map' && 'subject_obj_type_map'");
 			return;
@@ -1767,7 +1866,7 @@ class AdminController extends BaseController {
 
 		$flags = array('OT:auth-genre');
 		$limit = 30;
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1784,7 +1883,7 @@ class AdminController extends BaseController {
 
 		$flags = array('OT:auth-event');
 		$limit = 30;
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1801,7 +1900,7 @@ class AdminController extends BaseController {
 
 		$flags = array('OT:auth-object');
 		$limit = 30;
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1819,7 +1918,65 @@ class AdminController extends BaseController {
 
 		$flags = array('OT:auth-concept');
 		$limit = 30;
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
+
+		$response = Response::make($rep, 200);
+		$response->header('Cache-Control', 'no-cache, must-revalidate');
+		$response->header('Content-Type', 'application/json');
+		return $response;
+
+	}
+
+
+	function ws_search_main_category_concept(){
+
+		$term = get_get("term");
+		$item_id = get_get("item_id");
+// 		if (empty($term)) {
+// 			return AdminController::ws_empty_json_response();
+// 		}
+
+		if(!empty($item_id)){
+		$basic = PDao::getItemBasic($item_id);
+			if ($basic){
+				if (!empty($basic['flags_json'])) {
+					$flags = json_decode($basic['flags_json'], true);
+					if (!in_array("HAS:subcategory", $flags )) {
+
+						$flags = array('LEVEL:1');
+						$limit = 30;
+						$rep  =  PDao::find_node_for_subject($term, $flags ,true, $limit, true, 'label2');
+						$response = Response::make($rep, 200);
+						$response->header('Cache-Control', 'no-cache, must-revalidate');
+						$response->header('Content-Type', 'application/json');
+						return $response;
+
+					}
+				}
+			}
+		}else{
+			$flags = array('LEVEL:1');
+			$limit = 50;
+			$rep  =  PDao::find_node_for_subject($term, $flags ,true, $limit, true, 'label2');
+			$response = Response::make($rep, 200);
+			$response->header('Cache-Control', 'no-cache, must-revalidate');
+			$response->header('Content-Type', 'application/json');
+			return $response;
+		}
+
+	}
+
+
+	function ws_search_category_concept(){
+
+		$term = get_get("term");
+// 		if (empty($term)) {
+// 			return AdminController::ws_empty_json_response();
+// 		}
+
+		$flags = array('IS:category');
+		$limit = 100;
+		$rep  =  PDao::find_node_for_subject($term, $flags, true, $limit, true, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1837,7 +1994,7 @@ class AdminController extends BaseController {
 
 		$flags = array('OT:auth-general');
 		$limit = 30;
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1854,7 +2011,7 @@ class AdminController extends BaseController {
 
 		$flags = array('OT:subject-chain');
 		$limit = 30;
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
@@ -1871,12 +2028,34 @@ class AdminController extends BaseController {
 
 		$flags = array('OT:auth-concept','OT:auth-genre');
 		$limit = 30;
-		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit);
+		$rep  =  PDao::find_node_for_subject($term,$flags ,true,$limit, false, 'label2');
 
 		$response = Response::make($rep, 200);
 		$response->header('Cache-Control', 'no-cache, must-revalidate');
 		$response->header('Content-Type', 'application/json');
 		return $response;
+	}
+
+
+
+	function parchive_field_help() {
+
+// 		$field_control = new FieldControl();
+// 		$field = $field_control -> getField2($key);
+		$key = null;
+		if (isset($_GET['key'])) {
+			$key = $_GET['key'];
+		}
+// 		Log::info("# key #". $key);
+
+		$fields = Setting::get('fields');
+		$field =null;
+		if(!empty($fields[$key])){
+			$field = $fields[$key];
+		}
+// 		Log::info(print_r($field,true));
+
+		return $field;
 	}
 
 
@@ -1897,14 +2076,70 @@ class AdminController extends BaseController {
 
 
 	public function lockTransactionResetFn() {
+		Log::info("LOCK TRANSACTION RESET");
+		$con = dbconnect();
 
-			Log::info("LOCK TRANSACTION RESET");
-			$con = dbconnect();
-			$SQL = "UPDATE dsd.ruleengine_lock SET pid=NULL, ts_start=NULL WHERE id=1";
-			$stmt = $con->prepare($SQL);
-			$stmt->execute();
-			return true;
+		$SQL = "UPDATE dsd.ruleengine_lock SET pid = NULL, ts_start = NULL WHERE id = 1";
+		$stmt = $con->prepare($SQL);
+		$stmt->execute();
 
+		$SQL = "UPDATE dsd.submits SET status = 13, error_message = 'lockTransactionReset' WHERE status in (1,2)";
+		$stmt = $con->prepare($SQL);
+		$stmt->execute();
+
+		return true;
 	}
+
+
+	public function lockTest() {
+
+		$pid = getmypid();
+
+		$st = get_get('t', 12);
+		$name= get_get('n', null);
+
+		$rlock = new GRuleEngineLock();
+
+		function insert_msg($msg) {
+			//CREATE TABLE dsd.ruleengine_lock_log (id serial primary key, msg varchar, ts timestamp with time zone default now());
+			$dbh = dbconnect();
+			$SQL = "INSERT INTO dsd.ruleengine_lock_log (msg) VALUES (?)";
+			$stmt = $dbh->prepare($SQL);
+			$stmt->bindParam(1, $msg);
+			$stmt->execute();
+		}
+
+		$output = '';
+		$info = function($pid,$msg) use (&$output) {
+			//$now = date(DATE_RFC2822);
+			$now = date("Y-m-d H:i:s");
+			list($usec, $sec) = explode(" ", microtime());
+			$t1 = (int)((float)($usec * 1000));
+			//$output .= ($now . ' ' . $t1 . ' | ' . $msg . "\n");
+			$msg_ok = sprintf("%s: %s",$pid,$msg);
+			$output .= sprintf("%s %3s | %s\n",$now,$t1, $msg_ok);
+			PUtil::logGreen($msg_ok);
+		};
+
+		$n =($name != null) ?$name . ' (' .  $st .')' : ' (' .  $st .')';
+
+		$info($pid, "LOCK");
+		$rlock->lock();
+		//$rlock->lock();
+		$info($pid, "LOCK ACK");
+		$info($pid, "WORK START");
+		insert_msg($pid . ': WORK START: ' . $n);
+		sleep($st);
+		insert_msg($pid . ': WORK END');
+		$info($pid, "WORK END");
+		$info($pid, "LOCK RELEASE");
+		$rlock->release();
+		//$rlock->release();
+		$info($pid, "LOCK RELEASE  ACK");
+
+		return Response::make($output,200)->header('Content-Type', 'text/plain');
+	}
+
+
 
 }

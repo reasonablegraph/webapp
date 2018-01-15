@@ -169,6 +169,7 @@ class SolrFTSControl {
 	 * @param VertextFtsData $fts_data
 	 */
 	public function updateFTSRecord($recordType, $id,$fts_data) {
+	  //PUtil::logRed("updateFTSRecord");
 		$client = $this->client;
 		$update = $client->createUpdate();
 		$doc = $update->createDocument();
@@ -221,7 +222,7 @@ class SolrFTSControl {
 
 //
 	public function batchInsertUpdateSolrRecords(&$solrDataArray) {
-
+    PUtil::logRed("FTSCONTROL batchInsertUpdateSolrRecords ???????????????????????????????");
 		$batchsize = 50;
 
 		try {
@@ -313,7 +314,3 @@ class SolrFTSControl {
 
 
 
-
-
-
-?>

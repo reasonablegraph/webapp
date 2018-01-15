@@ -21,6 +21,10 @@ class ArcAppImpl {
 		return $rep;
 	}
 
+	function uid(){
+		return $this->app->uid;
+	}
+
 
 	function user(){
 		if ($this->isAnonymous()){

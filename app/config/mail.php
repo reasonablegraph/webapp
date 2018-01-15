@@ -28,7 +28,8 @@ return array(
 	|
 	*/
 
-	'host' => 'smtp.mailgun.org',
+	//'host' => 'mail.forthnet.gr',
+		'host' => 's42.altsol.gr',
 
 	/*
 	|--------------------------------------------------------------------------
@@ -41,7 +42,8 @@ return array(
 	|
 	*/
 
-	'port' => 587,
+	//'port' => 465,
+		'port' => 25,
 
 	/*
 	|--------------------------------------------------------------------------
@@ -54,7 +56,9 @@ return array(
 	|
 	*/
 
-	'from' => array('address' => null, 'name' => null),
+	//'from' => array('address' => 'leonidakosp@ath.forthnet.gr', 'name' => 'Dryllerakis E-Library'),
+	//'from' => array('address' => 'elibrary@altsol.gr', 'name' => 'Dryllerakis E-Library'),
+		'from' => array('address' => 'elibrary@dryllerakis.gr', 'name' => 'Dryllerakis E-Library'),
 
 	/*
 	|--------------------------------------------------------------------------
@@ -67,7 +71,7 @@ return array(
 	|
 	*/
 
-	'encryption' => 'tls',
+	//'encryption' => 'ssl',
 
 	/*
 	|--------------------------------------------------------------------------
@@ -80,7 +84,7 @@ return array(
 	|
 	*/
 
-	'username' => null,
+	//'username' => 'leonidakosp.ath.forthnet.gr',
 
 	/*
 	|--------------------------------------------------------------------------
@@ -93,7 +97,7 @@ return array(
 	|
 	*/
 
-	'password' => null,
+	//'password' => '86w2R7Sa',
 
 	/*
 	|--------------------------------------------------------------------------

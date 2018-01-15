@@ -2,7 +2,11 @@
 <?php auth_check_mentainer(); ?>
 
 	<div class="log_action">
-		<h1 class='admin item-title spool'>Staff Actions / Logs</h1>
+		<div class='admin item-title log'>
+			<span>Staff Actions / Logs</span >
+			<span class='now-time'>{{sprintf('Current time: %s', date('H:i:s \o\n d-m-Y e'))}}</span>
+		</div>
+<!-- 		<h1 class='admin item-title spool'>Staff Actions / Logs</h1> -->
 		<div class="panel panel-primary">
 			<div class="panel-files panel-body">
 				<div id="metsearch">
@@ -44,7 +48,7 @@
 					<tbody>
 							@foreach ($results as $k => $v)
 								<tr>
-			  					<td>&#160;{{sprintf('%s', date('H:i:s \o\n d-m-Y', strtotime($v['last_event_ts'])))}}</td>
+			  					<td>&#160;{{sprintf('%s', date('H:i:s \o\n d-m-Y e', strtotime($v['last_event_ts'])))}}</td>
 			  					<td>&#160;{{$v['type']}}</td>
 			  					<td>&#160;{{$v['url']}}</td>
 			  					<td>&#160;{{$v['user_name']}}</td>

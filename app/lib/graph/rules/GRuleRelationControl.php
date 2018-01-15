@@ -45,4 +45,3 @@ class GRuleRelationControl extends AbstractGruleProcessVertice implements GRule 
 		// $context->addDebugMessage('<#############################################################################');
 	}
 }
-?>

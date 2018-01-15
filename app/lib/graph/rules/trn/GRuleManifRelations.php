@@ -22,4 +22,3 @@ class GRuleManifRelations extends AbstractGruleProcessVertice implements GRule {
 	
 	
 }
-?>

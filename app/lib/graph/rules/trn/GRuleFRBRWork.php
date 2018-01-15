@@ -253,5 +253,3 @@ class GRuleFRBRWork  extends AbstractGruleProcessVertice implements GRule {
 
 
 }
-
-?>

@@ -24,7 +24,62 @@ class PUtil {
 	}
 
 
-/**
+	public static function dumpMetadataValuesToFile($msg) {
+		Putil::logRed('dumpMetadataValuesToFile');
+		$DB = 'archive';
+		$c = 0;
+		if (isset($GLOBALS['dumpMetadataValuesToFile_counter'])) {
+			$c = $GLOBALS['dumpMetadataValuesToFile_counter'];
+		}
+		$c += 1;
+		$GLOBALS['dumpMetadataValuesToFile_counter'] = $c;
+		//$epoch = str_replace( ' ', '_',  microtime());
+		//$epoch = microtime(true) * 1000000;
+		$tmp = microtime();
+		$tmp_arr = explode(" ", $tmp);
+		$epoch = $tmp_arr[1] .'_' . $tmp_arr[0];
+		Log::info($epoch);
+		$SQL = 'SELECT metadata_value_id as mvid, item_id, element,text_value, text_lang as lang, ref_item, relation as rel, level, lid,link,obj_type,  CASE WHEN inferred THEN true ELSE null END as inf ,data from dsd.metadatavalue2';
+
+
+		$file = '/tmp/DUMP_PROPERTIES_' . $epoch . '_' . $c . '.txt';
+		Log::info($file);
+		$ok_msg = $msg . "\n";
+		if (isset($_SERVER['SCRIPT_URI'])) {
+			$ok_msg .= print_r($_SERVER['SCRIPT_URI'], true);
+		}
+		$ok_msg .= "\n================================================================================\n\n";
+		file_put_contents($file, $ok_msg);
+		$cmd = 'psql ' . $DB . ' -c "' . $SQL . '" >> ' . $file;
+
+		$cmd_out = array(); $status = 0;
+		$tmp = exec($cmd,$cmd_out,$status);
+	}
+
+public static function logInfo($msg){
+	Log::info( $msg );
+}
+
+public static function logRed($msg){
+	Log::info(json_decode('"\u001b[31m"') . $msg . json_decode('"\u001b[39m"'));
+}
+
+public static function logGreen($msg){
+	Log::info(json_decode('"\u001b[32m"') . $msg . json_decode('"\u001b[39m"'));
+}
+
+public static function logYellow($msg){
+	Log::info(json_decode('"\u001b[33m"') . $msg . json_decode('"\u001b[39m"'));
+}
+public static function logBlue($msg){
+	Log::info(json_decode('"\u001b[34m"') . $msg . json_decode('"\u001b[39m"'));
+}
+public static function logMagenta($msg){
+	Log::info(json_decode('"\u001b[35m"') . $msg . json_decode('"\u001b[39m"'));
+}
+
+
+	/**
  *
  * @param unknown $trace
  */
@@ -933,7 +988,7 @@ public static function parchive_item_json() {
 
 	drupal_add_http_header('Cache-Control', 'no-cache, must-revalidate');
 	drupal_add_http_header('Content-type', 'application/json');
-	echo json_encode($out);
+	echo json_encode($out,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
 	return null;
 }
 
@@ -1586,7 +1641,8 @@ public static function pdfinfo($dbh, $item_id,$internal_id,&$out){
 
 				$arr = explode(":", $line,2);
 				$k = trim(str_replace(" ", "-", $arr[0]));
-				$v = trim($arr[1]);
+				$v = empty($arr[1]) ? null : trim($arr[1]);
+// 				$v = trim($arr[1]);
 				$stmt->bindParam(1, $item_id);
 				$stmt->bindParam(2, $k);
 				$stmt->bindParam(3, $v);
@@ -2365,9 +2421,19 @@ public static  function upload_bitstream_from_post_data($item_id){
 			$value_expl = explode("‡", $value);
 			return $value_expl[0];
 		}
-
 		return null;
 	}
+  public static function explodeFacetValue($value){
+    if (!empty($value)){
+      $tmp = explode("‡", $value);
+      if (isset($tmp[1])){
+        return $tmp;
+      }
+      $tmp[1] = null;
+      return $tmp;
+    }
+    return array(null,null);
+  }
 
 
 	public static function getItemValueArrLabel($value){
@@ -2502,6 +2568,12 @@ public static  function upload_bitstream_from_post_data($item_id){
 
 
 
+	public static final function truncate_chars($text, $limit, $repl = '...') {
+		if( mb_strlen($text,"utf-8") > $limit )
+			$text = mb_substr($text, 0, $limit, "utf-8") . $repl;
+		return $text;
+	}
+
 
 
 	public static final function getSolrConfigEndPoints($index = 'opac'){
@@ -2530,6 +2602,66 @@ public static  function upload_bitstream_from_post_data($item_id){
 			}
 		}
 		return $solr_endpoints;
+	}
+
+
+	public static final function getSubmitStatus($submit_id) {
+		$submit_status = null;
+		if (($s_id = intval($submit_id))) {
+			$submit_status = PDao::get_submits_status($s_id);
+		}
+		return $submit_status;
+	}
+
+
+	public static final function getSubmitStatusByItem($item_id) {
+		$submit_status = null;
+		$dbh = dbconnect();
+		$SQL = "select status from dsd.submits where item_id = ? order by update_dt desc limit 1";
+		$stmt = $dbh->prepare($SQL);
+		$stmt->bindParam(1, $item_id);
+		$stmt->execute();
+		$r = $stmt->fetch();
+		if ($r) {
+			$submit_status = $r[0];
+		}
+		return $submit_status;
+	}
+
+
+	public static final function getSubmitsPending() {
+		$dbh = dbconnect();
+		$SQL = "select count(id) as count from dsd.submits where status NOT IN (?, ?) and update_dt is not null and ((current_timestamp - update_dt) < interval '1 hour')";
+		$stmt = $dbh->prepare($SQL);
+		$stmt->bindParam(1, SubmitsStatus::$finished);
+		$stmt->bindParam(2, SubmitsStatus::$error);
+		$stmt->execute();
+		$r = $stmt->fetch();
+		return $r[0];
+	}
+
+
+	public static function getInProcessReset() {
+		$dbh = dbconnect();
+		$SQL = "SELECT count(*) FROM public.long_run WHERE status = 1;";
+		$stmt = $dbh->prepare($SQL);
+		$stmt->execute();
+		$r = $stmt->fetch();
+		return $r[0];
+	}
+
+
+	public static function mb_str_split($string,$string_length=1) {
+		if(mb_strlen($string)>$string_length || !$string_length) {
+			do {
+				$c = mb_strlen($string);
+				$parts[] = mb_substr($string,0,$string_length);
+				$string = mb_substr($string,$string_length);
+			}while(!empty($string));
+		} else {
+			$parts = array($string);
+		}
+		return $parts;
 	}
 
 
@@ -2626,7 +2758,7 @@ class JsonHelper {
 	}
 
 	public function getJSON(){
-		return  json_encode($this->data);
+		return  json_encode($this->data,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
 	}
 
 }

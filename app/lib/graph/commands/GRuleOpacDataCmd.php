@@ -81,7 +81,7 @@ class GRuleOpacDataCmd implements  GCommand {
 // 				Log::info("neighbourhood " . $itemId . ' :: ' . implode(',',$data['neighbourhood']['def']));
 // 			}
 
-			$jdata =  json_encode($data);
+			$jdata =  json_encode($data,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
 
 
 			$st2->bindParam(1, $jdata);
@@ -172,5 +172,3 @@ class GRuleOpacDataCmd implements  GCommand {
 
 
 
-
-?>

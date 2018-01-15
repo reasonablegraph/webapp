@@ -39,6 +39,7 @@ class DataFields
 	const ea_identifier_id = 'ea:identifier:id';
 	const dc_title = 'dc:title:';
 	const dc_date_available = 'dc:date:available';
+	const dc_date_accessioned = 'dc:date:accessioned';
 	const dc_language_iso = "dc:language:iso";
 	const dc_contributor_author = "dc:contributor:author";
 	const dc_identifier_isbn = "dc:identifier:isbn";
@@ -74,7 +75,14 @@ class DataFields
 	const ea_description_abstract = 'dc:description:abstract';
 	const ea_oring_comment = 'ea:origin:comment';
 	const ea_title_uniform = 'ea:title:uniform';
-	const ea_work = 'ea:work:';
+	const ea_expres_Language = 'ea:expres:Language';
+	const ea_auth_NotePublic = 'ea:auth:NotePublic';
+	const ea_form_type = 'ea:form-type:';
+	const ea_has_issue = 'ea:hasIssue:';
+	const ea_key1 = 'ea:key1:';
+	const ea_key2 = 'ea:key2:';
+	const ea_key3 = 'ea:key3:';
+	const ea_key4 = 'ea:key4:';
 	//
 
 
@@ -99,6 +107,7 @@ class DataFields
 	const ea_call_number_cc = 'ea:call_number:CC';
 	const ea_material_type = 'ea:material:type';
 	const ea_artifact_location = 'ea:artifact:location';
+	const ea_artifact_of = 'ea:artifact-of:';
 	const ea_owner = 'ea:owner';
 
 	// MARC RELATED
@@ -113,6 +122,68 @@ class DataFields
 	const ea_marc_last_update = 'ea:marc:last:update';
 	const ea_marc_search_title = 'ea:marc:search:title';
 	const ea_source_filename = 'ea:source:filename';
+
+
+	// PERIODIC RELATED
+	const ea_periodic_frequency = 'ea:periodic:frequency';
+	const ea_periodic_ISSN_Number = 'ea:periodic:ISSN_Number';
+	const ea_periodic_publication_place = 'ea:periodic:publication_place';
+	const ea_periodic_publisher_name = 'ea:periodic:publisher_name';
+	const ea_periodic_category = 'ea:periodic:category';
+
+
+
+	// MAINIFESTATION RELATED
+	const ea_manif_Title_Remainder = 'ea:manif:Title_Remainder';
+	const ea_manif_Title_PartNumber = 'ea:manif:Title_PartNumber';
+	const ea_manif_Title_PartName = 'ea:manif:Title_PartName';
+	const ea_manif_Series_Title = 'ea:manif:Series_Title';
+	const ea_manif_subscription = 'ea:manif:subscription';
+	const ea_manif_pages = 'ea:manif:pages';
+	const ea_manif_Edition_Statement = 'ea:manif:Edition_Statement';
+	const ea_manif_Edition_Remainder = 'ea:manif:Edition_Remainder';
+	const ea_manif_ISBN_Number = 'ea:manif:ISBN_Number';
+	const ea_manif_ISBN_Terms = 'ea:manif:ISBN_Terms';
+	const ea_manif_ISBN_Qualify = 'ea:manif:ISBN_Qualify';
+	const ea_manif_active = 'ea:manif:active';
+	const ea_manif_approved = 'ea:manif:approved';
+	const ea_manif_Publication_Date = 'ea:manif:Publication_Date';
+	const ea_manif_Book_Type = 'ea:manif:Book_Type';
+	const ea_manif_Title_Responsibility = 'ea:manif:Title_Responsibility';
+	const ea_manif_Publication_Place = 'ea:manif:Publication_Place';
+	const ea_manif_Publisher_Name = 'ea:manif:Publisher_Name';
+	const ea_manif_subjectCategory = 'ea:manif:subjectCategory';
+	const ea_manif_Publication = 'ea:manif:Publication';
+	const ea_manif_Physical_Description = 'ea:manif:Physical_Description';
+	const ea_manif_Physical_Description_Details = 'ea:manif:Physical_Description_Details';
+	const ea_manif_Physical_Description_Dimensions = 'ea:manif:Physical_Description_Dimensions';
+	const ea_manif_Physical_Description_Accompanying = 'ea:manif:Physical_Description_Accompanying';
+
+
+
+	// WORK RELATED
+	const ea_work = 'ea:work:';
+	const ea_workof = 'ea:workOf:';
+	const ea_work_subjectCategory = 'ea:work:subjectCategory';
+	const ea_work_authorWork = 'ea:work:authorWork';
+
+
+
+	// ITEM RELATED
+	const ea_item_ownerItem = 'ea:item:ownerItem';
+	const ea_item_location = 'ea:item:location';
+	const ea_item_sublocation = 'ea:item:sublocation';
+	const ea_item_acquisitionDate = 'ea:item:acquisitionDate';
+	const ea_item_type = 'ea:item:type';
+	const ea_item_barcode = 'ea:item:barcode';
+	const ea_item_copyNumber = 'ea:item:copyNumber';
+	const ea_item_classification = 'ea:item:Classification';
+
+
+
+	// CONCEPT RELATED
+	const ea_concept_category_child = 'ea:concept:category_child';
+	const ea_concept_category_parent = 'ea:concept:category_parent';
 
 
 

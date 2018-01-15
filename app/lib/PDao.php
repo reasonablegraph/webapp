@@ -2012,7 +2012,7 @@ class PDao {
 				}
 				$vdata = PUtil::clearJdata($vdata);
 				if (! empty($vdata)) {
-					$data = json_encode($vdata);
+					$data = json_encode($vdata,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
 				}
 			}
 			$lid = null;
@@ -2455,6 +2455,14 @@ class PDao {
 
 	}
 
+	/**
+	 * @param $element
+	 * @param $term
+	 * @param callable $closure
+	 * @param null $obj_type
+	 * @param int $limit
+	 * @return array
+	 */
 	public static function search_metadata($element, $term, $closure = null, $obj_type = null, $limit = 24){
 		$dbh = dbconnect();
 
@@ -2512,6 +2520,14 @@ class PDao {
 	}
 
 
+
+	/**
+	 * @param $term
+	 * @param $field_id
+	 * @param callable $closure
+	 * @param int $limit
+	 * @return array
+	 */
 	public static function search_metadata_ac($term, $field_id, $closure = null, $limit = 22){
 
 		$dbh = dbconnect();
@@ -2640,6 +2656,25 @@ class PDao {
 			return null;
 		}
 		return $row;
+	}
+
+
+	public static function hasBitstreams($item_id){
+		$dbh = dbconnect();
+// 		$SQL="SELECT item_id, bitstream_id,name,size_bytes,checksum,checksum_algorithm,description,user_format_description,internal_id,store_number,sequence_id,mimetype,optimized
+// 		from dsd.bitstream_export  where item_id = ?";
+// 		$bitstreams  = $stmt->fetchAll($fetch_style = PDO::FETCH_ASSOC);
+
+		$SQL="SELECT count(*) AS cnt
+					FROM dsd.bitstream_export
+					WHERE item_id = ?";
+		$stmt = $dbh->prepare($SQL);
+		$stmt->bindParam(1, $item_id);
+		$stmt->execute();
+		$r = $stmt->fetch();
+		$val = $r['cnt'];
+
+		return $val;
 	}
 
 
@@ -3294,6 +3329,7 @@ public static function delete_item($item_id){
 }
 
 
+
 public static function delete_bitstream($item_id, $bid){
 
 	$dbh = dbconnect();
@@ -3605,7 +3641,7 @@ public static function export_one_item($item_id, $subdir = null){
 			"thumbnails" => $thumbs,
 			"relations" => $relations
 	);
-	$txt = json_encode($arr);
+	$txt = json_encode($arr,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
 	#echo("<pre>");
 	#echo("\n==========================\n");
 	#echo($txt);
@@ -3676,7 +3712,12 @@ public static function export_one_item($item_id, $subdir = null){
 }
 
 
-
+	/**
+	 * @param $element_name
+	 * @param callable $closure
+	 * @param int $limit
+	 * @return array
+	 */
 public static function search_metadata_element($element_name, $closure = null, $limit = 18){
 
 	$dbh = dbconnect();
@@ -3763,7 +3804,44 @@ public static function get_metadata_value_count($element, $term){
 }
 
 
+/**
+ *
+ * @param unknown $search_string
+ * @param string[] $flags  (den ginete escape, prepei na ine trusted gia apofigi SQL INJECTION)
+ * @param number $qlimit
+ */
+public static function find_node_for_title ($search_string, $flags, $qlimit = 30){
+	$dbh = dbconnect();
 
+	$ss = trim($search_string);
+
+	if (is_array($flags)){
+		$flags_str = 'ARRAY[';
+		$sep='';
+		foreach ($flags as $f){
+			$flags_str .= sprintf("%s'%s'",$sep,$f);
+			$sep = ', ';
+		}
+		$flags_str.=']';
+	} else {
+		$flags_str .= sprintf("ARRAY['%s']",$flags);
+	}
+
+	$SQL =sprintf("SELECT item_id as ref_item, label as value, prop_int[1] as count, obj_type
+		FROM dsd.item2, dsd.to_gr_tsquery(?) as q WHERE q @@ %s AND flags && %s AND status in ('finish')
+		ORDER BY CHAR_LENGTH(label) ASC  LIMIT %s",PgFtsConstants::COLUMN_SUBJECT, $flags_str,  $qlimit);
+	$stmt = $dbh->prepare($SQL);
+	$stmt->bindParam(1, $ss);
+	$stmt->execute();
+
+	$rep = array();
+	while ($r = $stmt->fetch()){
+		$val = $r['value'];
+		$rep[] = array('value' => $val);
+	}
+
+	return $rep;
+}
 
 
 /**
@@ -3773,7 +3851,7 @@ public static function get_metadata_value_count($element, $term){
  * @param string $prependObjType
  * @param number $qlimit
  */
-public static function find_node_for_subject($search_string, $flags, $prependObjType = false, $qlimit = 30, $search_init = false){
+public static function find_node_for_subject($search_string, $flags, $prependObjType = false, $qlimit = 30, $search_init = false, $order_by = null){
 
 	if (!is_int($qlimit)){
 		$qlimit = 30;
@@ -3796,16 +3874,21 @@ public static function find_node_for_subject($search_string, $flags, $prependObj
 	$dbh = dbconnect();
 	$rep = array();
 
+	if(empty($order_by)){
+		$order_by = "CHAR_LENGTH(label)";
+	}
+
+
 	if ( $search_init && (empty($ss) || $ss == 'null') ){
-		$SQL =sprintf("SELECT item_id as ref_item, label, prop_int[1] as count, obj_type
+		$SQL =sprintf("SELECT item_id as ref_item, label, prop_int[1] as count, obj_type, (jdata->'label')::varchar as label2
 		FROM dsd.item2 WHERE flags @> %s AND status in ('finish')
-		ORDER BY CHAR_LENGTH(label) ASC  LIMIT %s", $flags_str,  $qlimit);
+		ORDER BY %s ASC  LIMIT %s", $flags_str, $order_by,  $qlimit);
 		$stmt = $dbh->prepare($SQL);
 		$stmt->execute();
 	}else{
-		$SQL =sprintf("SELECT item_id as ref_item, label, prop_int[1] as count, obj_type
+		$SQL =sprintf("SELECT item_id as ref_item, label, prop_int[1] as count, obj_type, (jdata->'label')::varchar as label2
 		FROM dsd.item2, dsd.to_gr_tsquery(?) as q WHERE q @@ %s AND flags && %s AND status in ('finish')
-		ORDER BY CHAR_LENGTH(label) ASC  LIMIT %s",PgFtsConstants::COLUMN_SUBJECT, $flags_str,  $qlimit);
+		ORDER BY %s ASC  LIMIT %s",PgFtsConstants::COLUMN_SUBJECT, $flags_str, $order_by,  $qlimit);
 		$stmt = $dbh->prepare($SQL);
 		$stmt->bindParam(1, $ss);
 		$stmt->execute();
@@ -3821,8 +3904,16 @@ public static function find_node_for_subject($search_string, $flags, $prependObj
 
 	$i= 0;
 	while ($r = $stmt->fetch(PDO::FETCH_ASSOC)){
+
+			$label  = $r['label2'];
+			if (empty($label)){
+				$label  = htmlspecialchars_decode($r['label']);
+			}
+
+		//TODO label - neighborhood
+		//$label  = htmlspecialchars_decode($r['label']);
+
 		$ref_item = $r['ref_item'];
-		$label  = htmlspecialchars_decode($r['label']);
 		$count = $r['count'];
 
 		$obj_type = null;
@@ -3834,6 +3925,7 @@ public static function find_node_for_subject($search_string, $flags, $prependObj
 		$rep[$i] = array('value' => array($ref_item, $label, $count,0,$obj_type));
 		$i++;
 	}
+
 	return $rep;
 }
 
@@ -4144,13 +4236,54 @@ public static function delete_relation_values($item_id) {
 
 }
 
-#updates submits status
-public static function update_submits_status($submit_id,$item_id, $status) {
+// get submits status
+public static function get_submits_status($submit_id) {
 	$dbh = dbconnect();
-	$SQL ="UPDATE dsd.submits set status=?,final_item_id = ? WHERE id = ? ";
+	$SQL = "SELECT status FROM dsd.submits WHERE id = ?";
+	$stmt = $dbh->prepare($SQL);
+	$stmt->bindParam(1, $submit_id);
+	$stmt->execute();
+	$r = $stmt->fetch();
+	return $r['status'];
+}
+
+// updates submits status
+public static function update_submits_status($submit_id, $item_id, $status) {
+	if (!empty($submit_id) && !empty($item_id) && !empty($status)) {
+		$dbh = dbconnect();
+		$SQL = "UPDATE dsd.submits set status=?, final_item_id = ? WHERE id = ? ";
+		$stmt = $dbh->prepare($SQL);
+		$stmt->bindParam(1, $status);
+		$stmt->bindParam(2, $item_id);
+		$stmt->bindParam(3, $submit_id);
+		$stmt->execute();
+	}
+}
+
+public static function update_submits_status_only($submit_id, $status) {
+	$dbh = dbconnect();
+	$SQL = "UPDATE dsd.submits set status = ? WHERE id = ? ";
 	$stmt = $dbh->prepare($SQL);
 	$stmt->bindParam(1, $status);
-	$stmt->bindParam(2, $item_id);
+	$stmt->bindParam(2, $submit_id);
+	$stmt->execute();
+}
+
+public static function update_submits_final_item_id($submit_id, $item_id) {
+	$dbh = dbconnect();
+	$SQL = "UPDATE dsd.submits set final_item_id = ? WHERE id = ? ";
+	$stmt = $dbh->prepare($SQL);
+	$stmt->bindParam(1, $item_id);
+	$stmt->bindParam(2, $submit_id);
+	$stmt->execute();
+}
+
+public static function update_submits_status_and_error($submit_id, $status, $errormsg) {
+	$dbh = dbconnect();
+	$SQL = "UPDATE dsd.submits set status = ?, error_message = ? WHERE id = ? ";
+	$stmt = $dbh->prepare($SQL);
+	$stmt->bindParam(1, $status);
+	$stmt->bindParam(2, $errormsg);
 	$stmt->bindParam(3, $submit_id);
 	$stmt->execute();
 }
@@ -4491,6 +4624,63 @@ public static function change_bundle($bid, $bundle_name, $table = 'bitstream'){
 			}
 		}
 		return $thumbs;
+	}
+
+
+	public static function getThumbs2($item_id) {
+
+		$thumb_small = array ();
+		$thumb_big = array ();
+		$thumb_icon_small = array ();
+		$thumb_icon_big = array ();
+		$thumbs_description = null;
+
+		$dbh = dbconnect ();
+
+		$SQL = "SELECT b.thumb_description
+						FROM dsd.item_bitstream_ext b
+						LEFT JOIN dsd.thumbs t ON (t.item_id = b.item_id)
+						WHERE b.item_id =? AND (t.bitstream = b.bitstream_id)
+						GROUP BY b.item_id, b.thumb_description ";
+		$stmt = $dbh->prepare ( $SQL );
+		$stmt->bindParam ( 1, $item_id );
+		$stmt->execute ();
+		$res  = $stmt->fetch();
+		$thumbs_description = $res[0];
+
+		$SQL = "SELECT file,idx,idxf,ttype from dsd.thumbs where item_id = ? ORDER BY idx";
+		$stmt = $dbh->prepare ( $SQL );
+		$stmt->bindParam ( 1, $item_id );
+		$stmt->execute ();
+
+		while ( $r = $stmt->fetch () ) {
+
+			$file = $r [0];
+			$idxf = $r [2];
+			$ttype = $r [3];
+
+			if ($ttype == 1) {
+				$thumb_small [] = $file;
+			}else if ($ttype == 2) {
+				$thumb_big [] = $file;
+			}else if ($ttype == 3) {
+				$thumb_icon_small [] = $file;
+			}else if ($ttype == 4) {
+				$thumb_icon_big [] = $file;
+			}
+		}
+
+		if(!empty($thumb_small) && !empty($thumb_big) && !empty($thumb_icon_small) && !empty($thumb_icon_big)){
+			return array(
+					'small' => $thumb_small,
+					'big' => $thumb_big,
+					'icon_small' => $thumb_icon_small,
+					'icon_big' => $thumb_icon_big,
+					'description' => $thumbs_description,
+			);
+		}else{
+			return array();
+		}
 
 	}
 
@@ -4528,6 +4718,163 @@ public static function change_bundle($bid, $bundle_name, $table = 'bitstream'){
 	}
 
 
+	/**
+	 * @param  string $obj_type
+	 * @param  string $element
+	 * @param  string $value
+	 * @return int
+	 */
+	public static function getFirstItemIdByMetadataKey($obj_type, $element, $value) {
+		$item_id = null;
+		$dbh = prepareService();
+
+		$st = $dbh->prepare("SELECT item_id FROM dsd.metadatavalue2 WHERE obj_type = ? AND element = ? AND text_value = ? ORDER BY item_id desc LIMIT 1");
+		$st->bindParam(1, $obj_type);
+		$st->bindParam(2, $element);
+		$st->bindValue(3, trim($value));
+		$st->execute();
+		$result = $st->fetch();
+
+		if (!empty($result)) {
+			$item_id = $result[0];
+		}
+
+		return $item_id;
+	}
+
+
+	/**
+	 * @param  string $obj_type
+	 * @param  string $element
+	 * @param  string $value
+	 * @return int
+	 */
+	public static function getFirstItemIdByMetadataKeyCI($obj_type, $element, $value) {
+		$item_id = null;
+		$dbh = prepareService();
+
+		$st = $dbh->prepare("SELECT item_id FROM dsd.metadatavalue2 WHERE obj_type = ? AND element = ? AND lower(text_value) = lower(?) ORDER BY item_id desc LIMIT 1");
+		$st->bindParam(1, $obj_type);
+		$st->bindParam(2, $element);
+		$st->bindValue(3, trim($value));
+		$st->execute();
+		$result = $st->fetch();
+
+		if (!empty($result)) {
+			$item_id = $result[0];
+		}
+
+		return $item_id;
+	}
+
+
+	/**
+	 * @param  int $pid
+	 * @param  int $status 1:open, 2:closed
+	 * @param  int $type
+	 * @return int
+	 */
+	public static  function insert_long_run($pid, $status=1, $type=null ) {
+		$dbh = dbconnect();
+		$nextval = PUtil::nextval($dbh, 'public.long_run_id_seq');
+		$SQL = "INSERT INTO public.long_run(id,pid, status, type) values (?,?,?,?)";
+		$stmt = $dbh->prepare($SQL);
+		$stmt->bindParam(1, $nextval);
+		$stmt->bindParam(2, $pid);
+		$stmt->bindParam(3, $status);
+		$stmt->bindParam(4, $type);
+		$result = $stmt->execute();
+		return $nextval;
+	}
+
+
+	/**
+	 * @param  int $id
+	 * @param  int $status 1:open, 2:closed
+	 * @param  varchar $error_msg
+	 */
+	public static  function update_long_run($id, $status=2, $error_msg=null) {
+		$dbh = dbconnect();
+		$SQL = "UPDATE public.long_run SET status = ?, end_dt = now(), error_msg = ? WHERE id = ?";
+		$stmt = $dbh->prepare($SQL);
+		$stmt->bindParam(1, $status);
+		$stmt->bindParam(2, $error_msg);
+		$stmt->bindParam(3, $id);
+		$stmt->execute();
+	}
+
+
+	/**
+	 * @param  string $value
+	 * @return int
+	 */
+	public static function getItemCategory($cat_id) {
+
+		$dbh = dbconnect();
+
+// 		$SQL = "SELECT i.item_id, i.obj_type, i.form_type, i.label, v.element, v.text_value,v.ref_item from dsd.admin_item_v4 i
+// 		JOIN dsd.metadatavalue2 v ON (i.item_id = v.item_id and element='ea:concept:category_child' )
+// 		WHERE form_type='category' AND ref_item=?
+// 		ORDER BY label,text_value";
+
+	$SQL="
+		WITH item_v4 AS (
+				SELECT i.item_id,
+				i.obj_type,
+				m.text_value AS form_type,
+				i.label,
+				i.title,
+				i.status
+				FROM dsd.item2 i
+				LEFT JOIN dsd.metadatavalue2 m ON m.item_id = i.item_id AND m.element::text = 'ea:form-type:'::text
+				ORDER BY i.item_id DESC
+		)
+		SELECT i.item_id, i.obj_type, i.form_type, i.label, v.element, v.text_value,v.ref_item from item_v4 i
+		JOIN dsd.metadatavalue2 v ON (i.item_id = v.item_id and element='ea:concept:category_child' )
+		WHERE form_type='category' AND ref_item=?
+		ORDER BY label,text_value;
+		";
+
+		$stmt = $dbh->prepare($SQL);
+		$stmt->bindParam(1, $cat_id);
+		$stmt->execute();
+		$result = $stmt->fetch();
+
+		return $result;
+
+	}
+
+
+	/**
+	 * @param  string $username
+	 * @return string
+	 */
+	public static function getUserOrganization($username) {
+		$user_org = null;
+
+		$dbh = prepareService();
+		$st = $dbh->prepare("SELECT org_name FROM dsd.arc_user WHERE username = ?");
+		$st->bindParam(1, $username);
+		$st->execute();
+		$result = $st->fetch();
+
+		if (!empty($result)) {
+			$user_org = $result[0];
+		}
+		return $user_org;
+	}
+
+
 
 }
-?>
+
+
+
+
+
+
+
+
+
+
+

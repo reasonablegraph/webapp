@@ -79,6 +79,3 @@ class GRuleExpression  extends AbstractGruleProcessVertice implements GRule {
 
 
 }
-
-?>
-

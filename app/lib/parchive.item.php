@@ -299,8 +299,19 @@ class FieldControl {
 	private function loadFieldData(){
 		if (empty($this->field_conf)){
 			$this->field_conf=array(); //FIXME:ROOT_DIR
-			//$this->field_conf=json_decode(file_get_contents(ROOT_DIR  . '/etc/fields.json'),true);//FIXME: ROOT_DIR
+// 			$this->field_conf=json_decode(file_get_contents(ROOT_DIR  . '/etc/fields.json'),true);//FIXME: ROOT_DIR
+// 			$this->field_conf= json_decode(file_get_contents(app_path().'/store/meta/fields.json'),true);
 		}
+	}
+
+
+	public function getField2($key){
+		$this->loadFieldData();
+		$f = null;
+		if (isset($this->field_conf['fields'][$key])){
+			$f =  $this->field_conf['fields'][$key];
+		}
+		return $f;
 	}
 
 
@@ -2896,5 +2907,3 @@ class ItemBasicData
 
 
 
-
-?>

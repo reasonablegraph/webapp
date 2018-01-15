@@ -3,49 +3,22 @@ class GraphController extends BaseController {
 
 
 	public function graphviz() {
-		Log::info('GraphController:graphviz');
-		$graph = null;
-		$inferred_flag = ('0' != get_get('inferred','1'));
-		//$neighbourhood_flag = ('0' != get_get('neighbourhood','0'));
-		$neighbourhood_flag = get_get('neighbourhood','0');
-// 		$item_id = isset($_GET['i']) ? $_GET['i'] : null;
-// 		if (! empty($item_id)) {
-// 			// Log::info("load graph for item: " . $item_id);
 
-// 			// $graph = GGraphIO::loadNodeSubGraph($item_id);
-// 			$graph = GGraphIO::loadNodeSubGraphFull($item_id);
-// 		} else {
-// 			// Log::info("load graph");
-// 			$graph = GGraphIO::loadGraph();
-// 			// $graph = GGraphIO::loadNodeSubGraph(array(108,111));
-// 		}
+	//	Log::info('GraphController:graphviz');
+//		$graph = null;
+//		$inferred_flag = ('0' != get_get('inferred','1'));
+//		//$neighbourhood_flag = ('0' != get_get('neighbourhood','0'));
+//		$neighbourhood_flag = get_get('neighbourhood','0');
+//		$graph = GGraphIO::loadGraph(null,$inferred_flag);
+//		GGraphUtil::dumpGraphviz($graph,null,$inferred_flag,$neighbourhood_flag);
 
-// 		if ($inferred_flag){
-// 			$context= $this->graphResetFn(false);
-// 			/** @var $context GRuleContextR **/
-// 			$graph = $context->graph();
-// 		} else {
-// 			$graph = GGraphIO::loadGraph();
-// 		}
-		$graph = GGraphIO::loadGraph(null,$inferred_flag);
-
-
-
-		// $this->testRuleItemOf($graph);
-		// $des = $graph->getInferredEdges();
-		// foreach ($des as $e){
-		// Log::info("save edge: " . $e);
-		// GGraphUtil::saveEdge($e);
-		// }
-
-		// GGraphUtil::dump1($graph);
-
-		GGraphUtil::dumpGraphviz($graph,null,$inferred_flag,$neighbourhood_flag);
 	}
 	public function dump() {
-		$graph = GGraphIO::loadSubGraph();
-		GGraphUtil::dump1($graph);
+//		$graph = GGraphIO::loadSubGraph();
+//		GGraphUtil::dump1($graph);
 	}
+
+
 	private function testTraverse1($graph) {
 		$maxDistance = 0;
 		$roots = $graph->getRoots();
@@ -221,7 +194,56 @@ class GraphController extends BaseController {
 
 
 
+	public function resetFTS() {
+		//auth_check_mentainer();
+	//	PUtil::logRed("resetFTS");
 
+		$t1 = microtime(true);
+		Log::info("SOLR UPDATE START");
+
+		$c=0;
+		echo "<pre>";
+		$solrControl  = new SolrControl2();
+
+		$dbh=dbconnect();
+		$SQL="SELECT item_id,jdata,dt_create, status FROM dsd.item2 WHERE status = 'finish'";
+		$stmt = $dbh->prepare($SQL);
+		$stmt->execute();
+		while ($row = $stmt->fetch(PDO::FETCH_ASSOC)){
+			$item_id = $row['item_id'];
+			$data = json_decode($row['jdata'],true);
+			$dt_create = new DateTime($row['dt_create']);
+			$status = $row['status'];
+//			PUtil::logRed("==============================");
+//			PUtil::logRed($item_id);
+//			PUtil::logRed("==============================");
+//			Log::info(print_r($data,true));
+			$solr_doc = null;
+			if (isset($data['solr_data'])) {
+				$solr_doc = $data['solr_data'];
+				$solr_doc['id']=$item_id;
+				$solr_doc['create_dt'] = $dt_create;
+				$solr_doc['status']=$status;
+				if (isset($data['opac1'])) {
+					$c+=1;
+					//if (($c % 100) == 0){ $solrControl->flush(); }
+					//if (($c % 1) == 0){ $solrControl->commit(); }
+					$step2=100;if (($c % $step2) == 0){ $t2 = microtime(true); Log::info("solr: " . $c . ' :: ' . ($t2-$t1)  . " :: " . $step2*(($t2-$t1)/$c) ); }
+					//printf("%s\n",$item_id);
+					//PUtil::logRed($item_id);
+					$solr_doc['opac1'] = json_encode($data['opac1'], JSON_UNESCAPED_UNICODE);
+					$solrControl->insertData($solr_doc);
+				}
+			}
+		}
+		$solrControl->commit();
+
+		$t2 = microtime(true);
+		Log::info("SOLR UPDATE FINISH :: ". ($t2 - $t1));
+		//Log::info("SOLR UPDATE FINISH");
+		printf("%s solr records updated\n",$c);
+		echo "</pre>";
+	}
 
 	public function graphResetGUI() {
 		auth_check_mentainer();
@@ -342,12 +364,17 @@ class GraphController extends BaseController {
 
 		$context = null;
 		$itemId = get_get('item', null);
+		$lock_msg = empty($itemId) ? null : $itemId;
+		$rlock = new GRuleEngineLock();
+		$rlock->lock($lock_msg);
 
 		if (empty($itemId)) {
 			$context = $full_resest();
 		} else {
 			$context = $item_graph_save($itemId);
 		}
+
+		$rlock->release();
 
 		if ($verbose && ! empty($context)){
 			$dumpContext($context);

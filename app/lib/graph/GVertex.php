@@ -52,8 +52,6 @@ interface  GVertex extends GNode {
 	public function getObjectType();
 
 
-	   public function reloadProperties();
-	   public function loadProperties();
 
 
 }
@@ -121,16 +119,18 @@ class GVertexO extends GNodeO implements GVertex {
 		if ($direction == GDirection::OUT || $direction == GDirection::BOTH){
 			$edges = $this->getEdges(GDirection::OUT,$elements);
 			foreach ($edges as $e){
-				$rep[] = $e->getVertexTO();
+				$t = $e->getVertexTO();
+				$rep[$t->urnStr()] = $t;
 			}
 		}
 		if ($direction == GDirection::IN || $direction == GDirection::BOTH){
 			$edges = $this->getEdges(GDirection::IN,$elements);
 			foreach ($edges as $e){
-				$rep[] = $e->getVertexFrom();
+				$t= $e->getVertexFrom();
+				$rep[$t->urnStr()] = $t;
 			}
 		}
-		return $rep;
+		return array_values($rep);
 	}
 
 
@@ -458,30 +458,5 @@ class GVertexO extends GNodeO implements GVertex {
 	}
 
 
-	public function reloadProperties(){
-		$id = $this->persistenceId();
-		if (!empty($id)){
-			//echo("RUNTIME: LOAD VERTEX: $id\n");
-			Log::info("RUNTIME: LOAD VERTEX: $id");
-			$g = $this->graph();
-			GGraphIO::addItemToGraph($g, $id);
-		}
-	}
-
-
-	public function loadProperties(){
-		if (!empty($this->_props) ){
-			return;
-		}
-		$this->reloadProperties();
-	}
-
-
-
-
-
-
-
 
 }
-

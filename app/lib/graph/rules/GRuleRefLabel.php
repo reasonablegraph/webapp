@@ -84,5 +84,3 @@ class GRuleRefLabel extends AbstractBaseRule implements GRule {
 
 
 
-
-?>

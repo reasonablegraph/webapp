@@ -26,12 +26,33 @@
 
 	if ($edit_flag){
 		$tefxiStr .= sprintf('<br>id: %s 	&#160; 	&#160; status: <a href="/archive/recent?s=%s">%s</a>  ', $row['item_id'], $row['status'], $row['status']);
+
+		if (! empty($row['flags_json'])) {
+			$flags = json_decode($row['flags_json'], true);
+			$dispaly_flags = Config::get('arc.FLAGS',array());
+			$flags_result = array_intersect($flags, $dispaly_flags);
+
+			if (!empty($flags_result)){
+				$tefxiStr .='&#160; &#160;  flags: ';
+				$numFlags = count($flags_result);
+				$fl = 0;
+				foreach ($flags_result as $k => $v){
+					$tefxiStr .=  tr($v);
+					if(!(++$fl === $numFlags)) {
+						$tefxiStr .=  ', ';
+					}
+				}
+			}
+		}
+
 		if (! empty($row['user_create'])) {
 			$tefxiStr .= sprintf('&#160; &#160;  create: %s', $row['user_create']);
 		}
+
 		if (! empty($row['user_update'])) {
 			$tefxiStr .= sprintf('&#160; &#160;  update: %s', $row['user_update']);
 		}
+
 		$dt = PUtil::coalesce($row['dt_update'], $row['dt_create']);
 		$phpdate = strtotime($dt);
 		$tefxiStr .= sprintf('&#160; &#160; %s', date('d/m/Y', strtotime($dt)));

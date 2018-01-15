@@ -1,60 +1,6 @@
 <?php
 
 
-
-//  ea:subj:
-//  ea:subj:concept
-//  ea:subj:event
-//  ea:subj:form
-//  ea:subj:general
-//  ea:subj:object
-//  ea:subj:person
-//  ea:subj:place
-//  ea:subj:title
-//  ea:subj:work
-
-
-
-// class GruleSubjectChainLabelsCmd implements  GCommand {
-
-
-// 	public function __construct() {
-
-// 	}
-
-// 	public function execute($context){
-// 		//$context->addDebugMessage("GruleSubjectChainLabelsCmd INIT");
-
-// 		$map = $context->get('SUBJECT_CHAIN_LABELS_ARRAY');
-// 		//$context->addDebugMessage(print_r($map,true));
-
-// 		$con = dbconnect();
-// // 		$SQL1 = sprintf('UPDATE dsd.item2 SET label  = ?, title= ? WHERE item_id = ?');
-// // 		$st1 = $con->prepare($SQL1);
-
-// 		$SQL2 = sprintf("UPDATE dsd.metadatavalue2 SET text_value = ? where element = 'dc:title:' AND item_id = ?");
-// 		$st2 = $con->prepare($SQL2);
-
-// 		foreach ($map as $k=>$v){
-// 			//$context->addDebugMessage("@GruleSubjectChainLabelsCmd: " . $k . " = " . $v);
-
-// //  			$st1->bindParam(1, $v);
-// //  			$st1->bindParam(2, $v);
-// //  			$st1->bindParam(3, $k);
-// //  			$st1->execute();
-
-// 			$st2->bindParam(1, $v);
-// 			$st2->bindParam(2, $k);
-// 			$st2->execute();
-
-
-// 		}
-// 	}
-
-// }
-
-
-
 class GRuleSubjects  extends AbstractGruleProcessVertice implements GRule {
 
 
@@ -82,12 +28,6 @@ class GRuleSubjects  extends AbstractGruleProcessVertice implements GRule {
 		$title = $v->getPropertyValue('dc:title:');
 		$v->setTmpAttribute('label',$title);
 
-// 		$this->context->addDebugMessage("@GRuleSubjects proc: " . $v);
-		//Log::info(Log::info("@@1 GRuleSubjects proc: " . $v));
-		//echo("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
-
-		//$ot = $v->getPropertyValue("ea:obj-type:");
-		//Log::info("###@1 $v");
 		$g = $v->graph();
 		$src_id = $v->id();
 
@@ -149,36 +89,6 @@ class GRuleSubjects  extends AbstractGruleProcessVertice implements GRule {
 			}
 		}
 
-// 		// KATASKEVI LABEL
-// 		// HAS: FLAGS
-// 		//////////////////////////////////////
-// 		$label = '';
-// 		$sep ='';
-// 		$subject_edges = $v->getEdges(GDirection::OUT,$this->subject_keys);
-// 		//$edges =$v->getEdges(GDirection::OUT);
-// 		foreach ($subject_edges as $e){
-// 			$s = $e->getVertexTO();
-// 				//$this->context->addDebugMessage("@@PROC: " . $s);
-// 			$sl = GRuleUtil::getLabel($s);
-// 			$label .= $sep . $sl;
-// 			$sep = ' -- ';
-// 			$ot = $s->getObjectType();
-// 			if ($ot != 'subject-chain'){
-// 				$v->addFlag('HAS:'.$ot);
-// 			}
-// 			if ($ot == 'auth-person' || $ot == 'auth-family' || $ot == 'auth-organization'){
-// 				$v->addFlag('HAS:actor');
-// 			}
-// 			$surn = $s->urnStr();
-// 			// 				/** @var $e GEdge **/
-// 			// 				foreach ($edges as $e){
-// 			// 					if ($e->element() != 'ea:inferred-chain-link:' && $e->getVertexTO()->urnStr() == $surn){
-// 			// 						$this->context->addDebugMessage("TEST: " . $e->vkey() . " : " . $ot);
-// 			// 					}
-// 			// 				}
-// 		}
-
-
 
 		$sc = 0;
 		$label = '';
@@ -218,70 +128,12 @@ class GRuleSubjects  extends AbstractGruleProcessVertice implements GRule {
 		if (empty($jdata)){  $jdata = array(); }
 		$jdata['chain_subjects'] = $subject_childs;
 		$v->setTmpAttribute('jdata',$jdata);
-		$v->setTmpAttribute('label',$label);
-		$v->updatePropertyValue('dc:title:',null,$label);
+		if (! empty($label)) {
+			$v->setTmpAttribute('label', $label);
+			$v->updatePropertyValue('dc:title:', null, $label);
+		}
 		//$this->chainLAbelsArray[$v->persistenceId()] = $label;
 
-
-		// 		$fn2 = function ($c, $vertex, $element, $distance) use(&$v, &$graph, &$finishFlag, $context) {
-		// 			$context->addDebugMessage ( '###FN@@@: c:' . $c . ' vertext: ' . $vertex  .  ' element: ' . $element->urnStr() . ' distance: ' . $distance);
-		// 			return true;
-		// 		};
-		// 		$context->addDebugMessage('TRAVERSE: BF');
-		// 		$graph->traverseBF($v, 100,$fn2,$this->subject_keys ,GDirection::OUT);
-		// 		$context->addDebugMessage('--------------------------------');
-
-		//$graph->traverseBF($v, null,$fn2,'ea:inferred-chain-link:' ,GDirection::OUT);
-
-
-// 		$subjects = $v->getVertices(GDirection::OUT,'ea:inferred-chain-link:');
-// 		while(!$finishFlag){
-// 			$finishFlag = true;
-// 			foreach ($subjects as $v1){
-// 				$context->addDebugMessage('###v1: '  . $v1);
-// 				if ($v1->isOrphan()){ continue; };
-// 				$fn = function($c, $vertex,$parent, $distance) use (&$v1,&$graph,&$finishFlag,$context){
-// 					$context->addDebugMessage('###FN: ' . $c . ' : ' . $vertex);
-// 					/* @var $vertex GVertex */
-// 					if ($distance == 2){
-// 						if (!$vertex->getFirstEdge(GDirection::OUT, 'ea:inferred-chain-link:',$v1->urn())){
-// 							$finishFlag = false;
-// 							$context->addDebugMessage('###FN NE: ' . $v  .  ' -- [ea:inferred-chain-link:] --> ' . $vertex->urnStr());
-// 							//$context->addNewEdge($v->urnStr(), $vertex->urnStr(), 'ea:inferred-chain-link:',true);
-// 						}
-// 					}
-// 					return true;
-// 				};
-// 				$graph->traverseBF($v1, 2,$fn, array('ea:inferred-chain-link:'));
-// 			}
-// 		}
-
-
-
-
-
-//		foreach ($subjects as $s){
-			////$s->getProperties($element)
-// 			$ot = $s->getObjectType();
-// 			$urnStr = $s->urnStr();
-// 			$id = $s->id();
-// 			if ($ot == 'auth-general'){
-// 				//echo(">> $urnStr :  $id\n ");
-// 				$src = $v->getFirstVertex(GDirection::IN, 'ea:subj:');
-// 				if ($src){
-// 					$urnSrc = $src->urnStr();
-// 					Log::info("###@2 $urnSrc -->  $urnStr ");
-// 					$e = $g->addEdge($urnSrc, $urnStr, 'ea:subj:general',false);
-// 					if (! empty($e)){
-// 						Log::info("NE: $e\n");
-// 						GGraphUtil::saveEdge($e);
-// 						Log::info("DELETE: $src_id\n");
-// 						$cmd = new GRuleDeleteItemCmd($src_id);
-// 						$context->putCommand('V_DELETE_ITEM_' . $src_id, $cmd);
-// 					}
-// 				}
-// 			}
-//		}
 
 // 		///////////////////////////////////////////////
 // 		//TAG CLOUD
@@ -315,24 +167,3 @@ class GRuleSubjects  extends AbstractGruleProcessVertice implements GRule {
 
 }
 
-
-
-// class  GRuleSubjects  implements  GRule {
-// 	/**
-// 	 * @param GRuleContextR $context
-// 	 */
-// 	public function __construct($context) {
-
-// 	}
-
-// 	/**
-// 	 * @param GRuleContextR $context
-// 	 */
-// 	public function execute($context){
-// 		$graph = $context->graph();
-
-
-// 	}
-
-
-// }

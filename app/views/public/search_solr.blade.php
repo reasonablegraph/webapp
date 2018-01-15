@@ -5,6 +5,19 @@
 <script src="//code.jquery.com/ui/1.10.4/jquery-ui.min.js"></script>
 <link rel="stylesheet" type="text/css" href="//code.jquery.com/ui/1.10.4/themes/redmond/jquery-ui.css">
 
+
+
+<script src="<?php echo Config::get('arc.ARCHIVE_ASSETS_PATH');?>vendor/jquery-colorbox/jquery.colorbox.js"></script>
+<link rel="stylesheet" type="text/css" href="<?php echo Config::get('arc.ARCHIVE_ASSETS_PATH');?>vendor/jquery-colorbox/example5/colorbox.css">
+
+<script>
+$(document).ready(function(){
+	$(".colorbox-load").colorbox({rel:'nofollow'});
+});
+</script>
+
+
+
 <script type="text/javascript">
 $(function () {
     $('input[name="term"]').autocomplete({
@@ -36,7 +49,6 @@ function lessFacets(n) {
 // }
 
 </script>
-
 
 <!-- <h3>SOLR SEARCH</h3> -->
 @if( empty($list_mode) )
@@ -246,7 +258,7 @@ function lessFacets(n) {
 					@elseif( $list_mode == 'subj')
 						{{tr('Manifestations with subject')}} "{{$f_label}}"
 					@endif
-					({{$total_cnt}} {{trChoise('result',$total_cnt)}})
+					({{$total_cnt}} {{trChoise('result',$total_cnt)}}) <a href="{{UrlPrefixes::$item_opac}}{{$f_id}}">{{tr('Back to detail view')}}</a>
 				@endif
 
           <div class="result-filter">
@@ -319,8 +331,7 @@ function lessFacets(n) {
 
 
     <div id="tresults">
-     <div class="result-header" aria-hidden="true" >
-
+     <div class="col-md-12 result-header" aria-hidden="true" >
 			@if(empty($list_mode))
 					<!-- {{tr('search results')}} -->
 					{{trChoise('Found',$total_cnt)}} <strong>{{$total_cnt}}</strong> {{trChoise('result',$total_cnt)}}
@@ -332,17 +343,22 @@ function lessFacets(n) {
 						) &#9830; {{tr('total pages')}} {{$numPages}} </span>
 					@endif
 			@else
-				@if ($list_mode == 'ppl')
-					{{tr('Manifestations with publication place')}} <strong>"{{$f_label}}"</strong>
-				@elseif( $list_mode == 'pub')
-					{{tr('Manifestations with publisher')}} <strong>"{{$f_label}}"</strong>
-				@elseif( $list_mode == 'subj')
-					{{tr('Manifestations with subject')}} <strong>"{{$f_label}}"</strong>
-				@endif
-				<span class="results_exp">({{$total_cnt}} {{trChoise('result',$total_cnt)}})</span>
+				<div class="col-md-10 col-sm-12 sb_label" >
+					@if ($list_mode == 'ppl')
+						{{tr('Manifestations with publication place')}} <strong>"{{$f_label}}"</strong>
+					@elseif( $list_mode == 'pub')
+						{{tr('Manifestations with publisher')}} <strong>"{{$f_label}}"</strong>
+					@elseif( $list_mode == 'subj')
+						{{tr('Manifestations with subject')}} <strong>"{{$f_label}}"</strong>
+					@endif
+					<span class="results_exp">({{$total_cnt}} {{trChoise('result',$total_cnt)}})</span>
+				</div>
+				<div class="col-md-2 col-sm-12 sb_label">
+					<a class="sb_link" href="{{UrlPrefixes::$item_opac}}{{$f_id}}"><span class="glyphicon glyphicon-arrow-left"></span> {{tr('Back to detail view')}}</a>
+				</div>
 			@endif
 
-          <div class="result-filter">
+          <div class="col-sm-12 sb_label result-filter">
           @if (
 								Input::has('record_type') ||
 								Input::has('authors') ||
@@ -424,13 +440,34 @@ function lessFacets(n) {
         <ol class="reslist itemlist">
           @foreach ($resultset as $document)
           <?php	 $r = json_decode($document->opac1, true); ?>
-          <?php	 //echo '<pre>'; print_r($document); echo '</pre>'; ?>
+          <?php	 // echo '<pre>'; print_r($document); echo '</pre>'; ?>
+
+
+
+
+          <?php
+// 			          if(!empty($r['expressions'])){
+// 			          	foreach ($r['expressions'] as $expres){
+// 											echo $expres['title']."<br>";
+// 											foreach ($expres['manifestations'] as $manif){
+// 												echo $manif['title']."<br>";
+// 											}
+// 			          	}
+// 			          }
+           ?>
+
+
+
             <li class="resitem">
 
-            @if (isset($r['thumbs']['thumb']) && ! empty($r['thumbs']['thumb']))
-              <span aria-hidden="true" class="thumb_bg_img" style="background-image:url({{{UrlPrefixes::$media}}}/{{$r['thumbs']['thumb']}});"></span>
+            @if (isset($r['thumbs']['small']) && ! empty($r['thumbs']['small']))
+             <!-- <span aria-hidden="true" class="thumb_bg_img" style="background-image:url({{{UrlPrefixes::$media}}}/{{$r['thumbs']['small'][0]}});"></span>  -->
+             <span aria-hidden="true" class="sch_thumb_img" >
+               <a class="group colorbox-load cboxElement" rel="gal" href="{{{UrlPrefixes::$media}}}/{{$r['thumbs']['big'][0]}}" title="{{$r['thumbs']['description']}}" >
+                 <img src="{{{UrlPrefixes::$media}}}/{{$r['thumbs']['icon_small'][0]}}" alt="{{$r['thumbs']['description']}}">
+              </a>
+             </span>
             @endif
-
 
             @if($r['obj_type'] != 'auth-work' && $r['obj_type'] != 'auth-manifestation' && $r['obj_type'] != 'lemma' )
               {{tr($r['obj_type'])}}:
@@ -471,7 +508,39 @@ function lessFacets(n) {
                 @endif
               @endif
 
-            @if (isset($r['public_lines']))
+
+
+
+          <?php
+// 			          if(!empty($r['expressions'])){
+// 			          	foreach ($r['expressions'] as $expres){
+// 											echo $expres['title']."<br>";
+// 											foreach ($expres['manifestations'] as $manif){
+// 												echo $manif['title']."<br>";
+// 											}
+// 			          	}
+// 			          }
+           ?>
+
+
+
+     @if (isset($r['expressions']) && count($r['expressions']) > 0)
+                 	@foreach ($r['expressions'] as $expres)
+                    <span class="res_l">↳<a href="{{UrlPrefixes::$item_opac}}{{$expres['id']}}">{{$expres['title']}}</a>  </span>
+	                    @if (isset($expres['manifestations']))
+			                    @foreach ($expres['manifestations'] as $manif)
+															<span class="res_l" style="padding-left:30px;" >↳<a style="color:#000;" href="{{UrlPrefixes::$item_opac}}{{$manif['id']}}">{{$manif['title']}}</a>
+																	@if (isset($manif['items']))
+																			@foreach ($manif['items'] as $item)
+																					[<a href="{{UrlPrefixes::$item_opac}}{{$item['id']}}/download/0">{{$item['label']}}</a>]
+																			@endforeach
+																	@endif
+															</span>
+			               			@endforeach
+		               		@endif
+									@endforeach
+
+     @elseif(isset($r['public_lines']))
               @if (count($r['public_lines']) > 0)
                   @if (count($r['public_lines']) == 1)
                   <span class="res_l">{{tr('Manifestation of work')}}: </span>
@@ -519,6 +588,7 @@ function lessFacets(n) {
                   @endif
               @endif
             @endif
+
 
 <!--         <div style ="font-size:11px;"> -->
 <!--             @if($highlighting->getResult($document->id)) -->

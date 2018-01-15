@@ -59,5 +59,3 @@ class GRuleSaveFlagsCmd  implements  GCommand {
 
 }
 
-
-?>

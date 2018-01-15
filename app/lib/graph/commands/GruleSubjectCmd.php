@@ -51,5 +51,3 @@ class GruleSubjectCmd implements  GCommand {
 
 
 
-
-?>

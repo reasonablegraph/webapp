@@ -40,16 +40,17 @@ class GRuleUtil {
 	 * @param GVertex $v
 	 */
 	public static final function getLabel($v){
+
 		$label = $v->getTmpAttribute('label');
-		if (empty($label)){
-			$label = $v->getPropertyValue("Title_punc");
-		}
-		if (empty($label)){
-			$label = $v->getPropertyValue("dc:title:");
-		}
-		if (empty($label)){
-			$label = $v->urn();
-		}
+		if (!empty($label)){ return $label; }
+
+		$label = $v->getPropertyValue("Title_punc");//TODO:CHECK THIS
+		if (!empty($label)){ return $label; }
+
+		$label = $v->getPropertyValue("dc:title:");
+		if (!empty($label)){ return $label; }
+
+		$label = $v->urn();
 		return $label;
 	}
 

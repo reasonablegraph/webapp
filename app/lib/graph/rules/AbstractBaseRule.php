@@ -23,8 +23,3 @@ abstract class AbstractBaseRule implements GRule {
 
 
 }
-
-
-
-
-?>

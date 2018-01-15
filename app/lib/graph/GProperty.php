@@ -51,6 +51,7 @@ interface GPValueGraph extends GPValue {
 	public function hasRefItem();
 	public function deps();
 	public function inferred();
+	public function relType();
 }
 
 
@@ -102,8 +103,8 @@ interface GPropertyItem extends GPropertyTree {
 //DOT1:  "AbstractGPValueO" [ label = "AbstractGPValueO\n (class)"];
 abstract class AbstractGPValueO  {
 
-	abstract function value();
-	abstract function data();
+	abstract public function value();
+	abstract public function data();
 
 
 	//public function jsonData(){
@@ -177,7 +178,11 @@ abstract class AbstractGPValueO  {
 //DOT2:  "GPValueO" -> "AbstractGPValueO"  [ label = "extends"];
 //DOT2:  "GPValueO" -> "GPValue"  [ label = "implements"];
 class GPValueO  extends AbstractGPValueO implements GPValue {
+	/**
+	 * @var $value string
+	 */
 	private $value;
+
 	private $data;
 	private $lang;
 	private $weight;
@@ -204,7 +209,6 @@ class GPValueO  extends AbstractGPValueO implements GPValue {
 
 
 	public function __toString(){
-
 		return $this->value;
 	}
 
@@ -328,8 +332,12 @@ class GPropertyO extends AbstractGPValueO implements GPropertyItem {
 			return isset($this->row['weight']) ?  $this->row['weight'] : null;
 		}
 
+		public function relType(){
+			return isset($this->row['relation']) ?  $this->row['relation'] : null;
+		}
 
-		public function _decreaseLevel(){
+
+	public function _decreaseLevel(){
 			if (isset($this->row['level'])){
 				$level = $this->row['level'];
 				if ($level > 1){
@@ -349,9 +357,3 @@ class GPropertyO extends AbstractGPValueO implements GPropertyItem {
 
 
 }
-
-
-
-
-
-

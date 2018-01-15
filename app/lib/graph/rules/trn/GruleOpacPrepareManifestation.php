@@ -78,5 +78,3 @@ class GRuleOpacPrepareManifestation extends AbstractGruleProcessVertice implemen
 }
 
 
-
-?>

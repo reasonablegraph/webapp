@@ -348,6 +348,145 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
   /**
    * @param DisplayContext $context
    */
+  public static function publication($context,$options){
+
+  	$class = Putil::safeArrGet($options, 'class', null);
+  	$labelE = DisplayCommandSnipets::createLabel($context, $options);
+  	$labelSR = isset($options['label']) ? htmlspecialchars(tr($options['label'])) : '&nbsp;';
+  	$grid_col_class = $context->get('_grid_col_2_class');
+  	$idata2 = $context->getItemBasics();
+
+  	if (!empty($idata2['jdata'])){
+  		$json = json_decode($idata2['jdata'], true);
+  		if(!empty($json['opac1']['publication'])){
+  			$publication = $json['opac1']['publication'];
+  			if(!$context->get('isScreenReader') == true){
+  				echo "<div class='row $class'>$labelE<div class='$grid_col_class'>$publication</div></div>";
+  			}else{
+  				echo "<li><label>$labelSR</label> $publication</li>";
+  			}
+  		}
+  	}else{
+  		return;
+  	}
+  }
+
+
+  /**
+   * @param DisplayContext $context
+   */
+  public static function opac1_data_1($context,$options){
+
+  	$keys = isset($options['key']) ? $options['key'] : null;
+  	if (empty($keys)) {
+  		return;
+  	}
+
+  	$class = Putil::safeArrGet($options, 'class', null);
+  	$labelE = DisplayCommandSnipets::createLabel($context, $options);
+  	$labelSR = isset($options['label']) ? htmlspecialchars(tr($options['label'])) : '&nbsp;';
+  	$grid_col_class = $context->get('_grid_col_2_class');
+  	$idata = $context->getItemBasics();
+
+  	if (!empty($idata['jdata'])){
+  		$json = json_decode($idata['jdata'], true);
+  		if(!empty($json['opac1'][$keys])){
+  			$opac1_data = $json['opac1'][$keys];
+  			if(!$context->get('isScreenReader') == true){
+	  			echo "<div class='row $class'>$labelE<div class='$grid_col_class'>";
+	  				if (!empty($opac1_data['id'])){
+	  					printf("<a href='/archive/item/%s'>%s</a><br>",$opac1_data['id'],$opac1_data['label']);
+	  				}else{
+	  					foreach ($opac1_data as $data){
+	  						if (is_array($data)){
+	  							printf("<a href='/archive/item/%s'>%s</a><br>",$data['id'],$data['label']);
+	  						}
+	  					}
+	  				}
+	  			echo "</div></div>";
+  			}else{
+  				echo "<li><label>$labelSR</label>";
+  				if (!empty($opac1_data['id'])){
+  					printf("<a href='/archive/item/%s'>%s</a>",$opac1_data['id'],$opac1_data['label']);
+  				}else{
+  					echo "<ol>";
+	  				foreach ($opac1_data as $data){
+	  					printf("<li><a href='/archive/item/%s'>%s</a></li>",$data['id'],$data['label']);
+	  				}
+	  				echo "</ol>";
+  				}
+  				echo "</li>";
+  			}
+  		}
+  	}else{
+  		return;
+  	}
+  }
+
+
+  /**
+   * @param DisplayContext $context
+   */
+  public static function issues($context,$options){
+
+  	$class = Putil::safeArrGet($options, 'class', null);
+  	$labelE = DisplayCommandSnipets::createLabel($context, $options);
+  	$labelSR = isset($options['label']) ? htmlspecialchars(tr($options['label'])) : '&nbsp;';
+  	$grid_col_class = $context->get('_grid_col_2_class');
+  	$idata2 = $context->getItemBasics();
+
+  	if (!empty($idata2['jdata'])){
+  		$json = json_decode($idata2['jdata'], true);
+  		if(!empty($json['opac1']['issues_num'])){
+  			$num_issues = $json['opac1']['issues_num'];
+  			if(!$context->get('isScreenReader') == true){
+  				echo "<div class='row $class'>$labelE<div class='$grid_col_class'>$num_issues</div></div>";
+  			}else{
+  				echo "<li><label>$labelSR</label> $num_issues</li>";
+  			}
+  		}
+  	}else{
+  		return;
+  	}
+  }
+
+
+  /**
+   * @param DisplayContext $context
+   */
+  public static function jfoto($context,$options){
+
+  	$idata2 = $context->getItemBasics();
+  	if (!empty($idata2['jdata'])){
+  		$json = json_decode($idata2['jdata'], true);
+
+//   		echo '<pre>'; print_r($json['opac1']['thumbs']); echo '</pre>';
+  		if(!empty($json['opac1']['thumbs']['description'])){
+  			$description = $json['opac1']['thumbs']['description'];
+  			$aria_hidden = "false";
+  		}else{
+  			$description = tr('Photo of item');
+  			$aria_hidden = "true";
+  		}
+
+  		if (empty($json['opac1']['thumbs']['small'])){
+  			printf('<img src="/_assets/img/na.png" alt="%s" aria-hidden = "true" />',$description);
+  		}else{
+  			  $thumb_s = $json['opac1']['thumbs']['small'][0];
+  			  $thumb_b = !empty( $json['opac1']['thumbs']['big'][0]) ? $json['opac1']['thumbs']['big'][0] : $json['opac1']['thumbs']['small'][0] ;
+  			  printf('<span class="item_thumb_img"><a class="group colorbox-load" rel="gal" href="/media/%s" title="%s" aria-hidden = "%s" ><img src="/media/%s" alt="%s" /></a></span>',
+  			  $thumb_b, $description, $aria_hidden, $thumb_s, $description);
+  		}
+  	}else{
+  		return;
+  	}
+
+  }
+
+
+  /**
+   * @param DisplayContext $context
+   */
   public static function foto_thumbs($context,$options){
     $class = Putil::safeArrGet($options, 'class', null);
     $thumbs_s = $context->getThumbsSmall();
@@ -475,9 +614,35 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
         $month_tr =null;
 
         if( !empty($day) && !empty($month)){
-        	$month_tr = tr('nom_'.$month);
+        	if (preg_match("/^[\d]+\/[\d]+$/", $month)) {
+        		$months = explode("/", $month);
+        		for ($i = 0; $i < count($months); $i++) {
+        			$m = intval($months[$i]);
+        			if ($m <= 12 && $m >= 1){
+        				$month_tr .= tr('nom_'.$m);
+        				if(end($months) != $m){
+        					$month_tr .=' / ';
+        				}
+        			}
+        		}
+        	}else{
+        		$month_tr = tr('nom_'.$month);
+        	}
         }else if(!empty($month)){
-        	$month_tr = tr('acc_'.$month);
+        	if (preg_match("/^[\d]+\/[\d]+$/", $month)) {
+        		$months = explode("/", $month);
+        		for ($i = 0; $i < count($months); $i++) {
+        			$m = intval($months[$i]);
+        			if ($m <= 12 && $m >= 1){
+        				$month_tr .= tr('acc_'.$m);
+        				if(end($months) != $m){
+        					$month_tr .=' / ';
+        				}
+        			}
+        		}
+        	}else{
+        		$month_tr = tr('acc_'.$month);
+        	}
         }
 
         $comment = $date[5]['json']['t'];
@@ -909,7 +1074,7 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
    * @deprecated
    * @param DisplayContext $context
    */
-  public static function publication($context,$options){
+  public static function publication_old($context,$options){
 
     $label = Putil::safeArrGet($options, 'label', 'publication');
     $class = Putil::safeArrGet($options, 'class', null);
@@ -1015,6 +1180,106 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
         return;
      }
   }
+
+
+  /**
+   * @param DisplayContext $context
+   */
+  public static function item_with_notes($context,$options){
+
+  	$class = isset($options['class']) ? $options['class']: '';
+  	$template = Putil::safeArrGet($options, 'template', 'empty');
+  	$idata = $context->getItemMetadata();
+  	$vals = $idata->getItemValues($options['key']);
+
+  	if(!empty($vals)){
+  		$value_array = array();
+  		$list_array = array();
+  		DisplayCommands::setGridColClass($context,$options);
+  		$labelE = DisplayCommandSnipets::createLabel($context,$options);
+  		$labelSR = isset($options['label']) ? htmlspecialchars(tr($options['label'])): '&nbsp;';
+  		$grid_col_class = $context->get('_grid_col_2_class');
+
+  		$i =0;
+  		foreach ($vals as $v) {
+  			$note = null;
+  			$dateStart = null;
+  			$dateEnd = null;
+
+  			$val1 = $v->textValue();
+  			$ri = $v->refItem();
+  			$sel_val = $v->data();
+  			$i++;
+  			if($i>1){
+  				$value_array['delimiter'] = true;
+  			}
+  			if(!empty($ri) ){
+  				$value_array['url'] = "/archive/item/$ri";
+  				$value_array['class'] = 'assetlink';
+  				$value_array['value'] = $val1;
+  			}else{
+  					$value_array['value'] = $val1;
+  			}
+
+  			$lnk = $v->recordId();
+  			$array_val = array();
+  			if(!empty($options['key_child'])){
+	  			foreach ($options['key_child'] as $key_child) {
+		  			$vals_child =$idata->getArrayValues($key_child, $lnk);
+		  			if(!empty($vals_child)){
+		  				foreach ($vals_child as $vc) {
+		  					$val = sprintf('%s',htmlspecialchars($vc[0]));
+		  					$array_val[] = $val;
+		  				}
+		  			}
+	  			}
+
+	  			$note = (!empty($array_val[0])) ?  $array_val[0] : null ;
+	  			$dateStart = (!empty($array_val[1])) ?  $array_val[1] : null ;
+	  			$dateEnd= (!empty($array_val[2])) ?  $array_val[2] : null ;
+
+	  			$var_templ2 = array(
+	  					'note' => $note,
+	  					'dateStart' => $dateStart,
+	  					'dateEnd' => $dateEnd,
+	  			);
+
+	  			$m2 = new Mustache_Engine;
+	  			$template2 = Config::get('arc_display_template.notes');
+	  			$content = $m2->render($template2,$var_templ2);
+
+	  			$value_array['notes'] = $content;
+  			}
+
+  			$list_array['link_list'][] = $value_array;
+
+  		}
+
+  		$var_templ = array(
+  				'line_list' => $list_array,
+  				'label' => $labelE,
+  				'label_sr' =>$labelSR,
+  				'grid_col_class' => $grid_col_class,
+  		);
+
+  		$m = new Mustache_Engine;
+  		if($context->get('isScreenReader') == true){
+  			$template = Config::get('arc_display_template_sr-only.'.$template);
+  			$content = $m->render($template,$var_templ);
+  			printf('<li>%s</li>',$content);
+  		}else{
+  			$template = Config::get('arc_display_template.'.$template);
+  			$content = $m->render($template,$var_templ);
+  			printf('<div class="row %s">%s</div>',$class,$content);
+  		}
+
+  	}else{
+  		return;
+  	}
+  }
+
+
+
 
 
   /**
@@ -1130,7 +1395,7 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
                       	$str += strlen(utf8_decode($val11));
                       	if ( $str > 160){
                       		$grid_col_class = "br_row_wh col-md-12";
-                      		$labelE = null;
+                      		//$labelE = null;
                       	}
                       }
 
@@ -1275,6 +1540,169 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
   }
 
 
+  /**
+   * BIBFRAME
+   * @param DisplayContext $context
+   */
+  public static function agent_associated($context,$options){
+  	$class = isset($options['class']) ? $options['class']: '';
+  	$template = Putil::safeArrGet($options, 'template', 'empty');
+  	$idata = $context->getItemMetadata();
+
+  	$labelE = '';
+  	$labelSR = '';
+  	$grid_col_class='';
+  	$vals = $idata->getItemValues($options['key']);
+
+  	if(!empty($vals)){
+  		$all_list_array = array();
+  		DisplayCommands::setGridColClass($context,$options);
+  		$labelE = DisplayCommandSnipets::createLabel($context,$options);
+  		$labelSR = isset($options['label']) ? htmlspecialchars(tr($options['label'])): '&nbsp;';
+  		$grid_col_class = $context->get('_grid_col_2_class');
+
+  		$list_array = array();
+  		$k=0;
+  		foreach ($vals as $v) {
+  			$value_array = array();
+  			$lnk = $v->recordId();
+  			if (!empty($options['key_child'])){
+  				$setting_variable = $options['key_child'];
+  				if (is_array($setting_variable)){
+  					$setting_json= array();
+  					$k++;
+  					$i=0;
+  					foreach ($setting_variable as $sub_arr){
+  						$vals1 =$idata->getArrayValues($sub_arr, $lnk);
+  						if(!empty($vals1)){
+  							foreach ($vals1 as $v2) {
+  								$i++;
+  								$ri = $v2[4];
+  								$my_title = PUtil::getItemValueArrLabel($v2);
+  								$value_array = array();
+  								if(!empty($ri)){
+  									$value_array['value'] = $my_title;
+  									$value_array['url'] = '/archive/item/' . $ri;
+  									$value_array['class'] = 'assetlink';
+  									if($i>1){
+  										$value_array['delimiter'] ='true';
+  									}
+  									$list_array['link_list'][] = $value_array;
+  									if($k>1){
+  									$list_array['del'] =',';
+  									}
+  								} else{
+  									$value_array['value'] = $my_title;
+  									if($i>1){
+  										$value_array['delimiter'] ='true';
+  									}
+  									$list_array['link_list'][] = $value_array;
+  								}
+  							}
+  						}
+  					}
+  					$container_array['inner'][] = $list_array;
+  					$list_array = array();
+  				}
+  			}else{
+  				return;
+  			}
+  		}
+
+//   		echo "<pre>"; print_r($container_array); echo "</pre>";
+  			$var_templ = array(
+  					'container' => $container_array,
+  					'label' => $labelE,
+  					'label_sr' =>$labelSR,
+  					'grid_col_class' => $grid_col_class,
+  			);
+
+  			$m = new Mustache_Engine;
+  			if($context->get('isScreenReader') == true){
+  				$template = Config::get('arc_display_template_sr-only.'.$template);
+  				$content = $m->render($template,$var_templ);
+  				printf('<li>%s</li>',$content);
+  			}else{
+  				$template = Config::get('arc_display_template.'.$template);
+  				$content = $m->render($template,$var_templ);
+  				printf('<div class="row %s">%s</div>',$class,$content);
+  			}
+
+
+
+
+  	}else{
+  		return;
+  	}
+
+  }
+
+
+  /**
+   * @param DisplayContext $context
+   */
+  public static function one_label_line_multiple($context,$options){
+
+  	$template = Putil::safeArrGet($options, 'template', 'empty');
+  	$class = isset($options['class']) ? $options['class']: '';
+  	$lang = Putil::safeArrGet($options, 'lang', null);
+  	$grid_col_class='';
+  	DisplayCommands::setGridColClass($context,$options);
+  	$grid_col_class_label = $context->get('_grid_col_1_class');
+  	$grid_col_class = $context->get('_grid_col_2_class');
+  	$setting_json = Setting::get($options['setting_variable']);
+
+  	if(!empty($setting_json)){
+  		$ex_array = array();
+  		$idata = $context->getItemMetadata();
+
+  		foreach ($setting_json as $k => $l) {
+  				$vals = $idata->getItemValues($k);
+  				if(!empty($vals)){
+  					$value_array = array();
+  					$list_array = array();
+  					$i=0;
+  					foreach ($vals as $v) {
+  						$i++;
+  						if($i>1){
+  							$value_array['delimiter'] ='true';
+  						}
+  						$val1 = $v->textValue();
+  						$list_array['label'] = tr($l);
+  						if(!empty($lang)){
+  							$value_lang = $v->lang();
+  							if ($value_lang != '_'){
+  								$val1 = $val1 .' ('. $value_lang . ')';
+  								}
+  						}
+  								$value_array['value'] = $val1;
+  								$list_array['link_list'][] = $value_array;
+  						}
+  						$ex_array['ex_list'][] = $list_array;
+  					}
+  			}
+
+  			$var_templ = array(
+  					'ex_array' => $ex_array,
+  					'class' => $class,
+  					'grid_col_class' => $grid_col_class,
+  					'grid_col_class_label' => $grid_col_class_label,
+  			);
+
+  			$m = new Mustache_Engine;
+  			if($context->get('isScreenReader') == true){
+  				$template = Config::get('arc_display_template_sr-only.'.$template);
+  				echo $content = $m->render($template, $var_templ);
+  			}else{
+  				$template = Config::get('arc_display_template.'.$template);
+  				echo $content = $m->render($template, $var_templ);
+  			}
+  		}else{
+  			return;
+  		}
+  	}
+
+
 
   /**
    * @param DisplayContext $context
@@ -1283,6 +1711,12 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
 
     $class = isset($options['class']) ? $options['class']: '';
     $lang = Putil::safeArrGet($options, 'lang', null);
+
+    $translate = Putil::safeArrGet($options, 'translate', null);
+    $esc= Putil::safeArrGet($options, 'esc', null);
+
+
+
     $template = Putil::safeArrGet($options, 'template', 'empty');
     $idata = $context->getItemMetadata();
     $vals = $idata->getItemValues($options['key']);
@@ -1305,7 +1739,7 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
           $sel_val = $v->data();
           $i++;
           if($i>1){
-            $value_array['delimiter'] ='true';
+            $value_array['delimiter'] = true;
           }
           if(!empty($ri) ){
             $value_array['url'] = "/archive/item/$ri";
@@ -1327,7 +1761,7 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
             $val1 = $sel_val['prps']['pnctn'];
             $value_array['value'] = $val1;
             $list_array['list'][] = $value_array;
-          }else if(!empty($sel_val) && !empty($sel_val['prps']['selected_value'])){
+          }else if(!empty($sel_val) && !empty($sel_val['prps']['selected_value']) && $esc!=true ){
             if ($val1!='undefined'){
                $val1 = $sel_val['prps']['selected_value'];
                $value_array['value'] = $val1;
@@ -1373,8 +1807,12 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
           	if(!empty($lang)){
           		$value_lang = $v->lang();
           		if ($value_lang != '_'){
-          			$val1 = $val1 .'('. $value_lang . ')';
+          			$val1 = $val1 .' ('. $value_lang . ')';
           		}
+          	}
+
+          	if($translate == true){
+          		$val1 = tr($val1);
           	}
 
             $value_array['value'] = $val1;
@@ -1543,6 +1981,21 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
       $labelE = DisplayCommandSnipets::createLabel($context,$options);
       $labelSR = isset($options['label']) ? htmlspecialchars(tr($options['label'])): '&nbsp;';
       $grid_col_class = $context->get('_grid_col_2_class');
+
+      if ($vals == 'auth-manifestation'){
+      	$ib = $context->getItemBasics();
+      	if (!empty($ib['flags_json'])){
+      		$flags = json_decode($ib['flags_json'], true);
+      		if(in_array('IS:issue',$flags)){
+      			$vals = 'Issue of periodic';
+      		}elseif(in_array('IS:book',$flags)){
+      			$vals = 'Book';
+      		}elseif(in_array('IS:musical',$flags)){
+      			$vals = 'Musical manifestation';
+      		}
+      	}
+      }
+
       $vals = empty($work_type) ? tr($vals) : tr($vals).' ('.tr($work_type).')';
 //       $vals = tr($vals);
 
@@ -1569,6 +2022,75 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
     }
   }
 
+
+  /**
+   * @param DisplayContext $context
+   */
+  public static function itemRelationSimple($context,$options){
+
+  	$members  = DisplayCommands::_getMembers($context, $options);
+
+  	if(!empty($members)){
+  		$template = Putil::safeArrGet($options, 'template', 'empty');
+  		$class = isset($options['class']) ? $options['class']: '';
+  		DisplayCommands::setGridColClass($context,$options);
+  		$grid_col_class='';
+  		$grid_col_class = $context->get('_grid_col_2_class');
+  		$labelE ='';
+  		$labelE = DisplayCommandSnipets::createLabel($context,$options);
+  		$labelSR = isset($options['label']) ? htmlspecialchars(tr($options['label'])): '&nbsp;';
+
+	  	$value_array = array();
+	  	$list_array = array();
+	  	$i=0;
+
+	  	$count = count($members);
+	  	foreach($members as $row){
+
+	  		//echo "<pre>";  print_r($row['jdata']); echo "</pre>";
+	  		$json = json_decode($row['jdata'], true);
+	  		if (!empty($json['label'])){
+	  			$value_array['title'] =  $json['label'];
+	  		}else{
+	  			$value_array['title'] = $row['title'];
+	  		}
+// 	  	  if (!empty($json['opac1'])){
+// 	  			echo $json['opac1']['id'];
+// 	  		}
+
+	  		$value_array['url'] = UrlPrefixes::$item_opac.$row['item_id'];
+	  		$i++;
+	  		if($count <= $i){
+	  			$value_array['del_stop'] ='true';
+	  		}
+	  		$list_array['link_list'][] = $value_array;
+	  	}
+
+	  	$var_templ = array(
+	  			'line_list' => $list_array,
+	  			'label' => $labelE,
+	  			'label_sr' =>$labelSR,
+	  			'class' => $class,
+	  			'grid_col_class' => $grid_col_class,
+	  	);
+
+	  	$m = new Mustache_Engine;
+	  	if($context->get('isScreenReader') == true){
+	  		$template = Config::get('arc_display_template_sr-only.'.$template);
+	  		$content = $m->render($template, $var_templ);
+	  		printf('<li>%s</li>',$content);
+	  	}else{
+	  		$template = Config::get('arc_display_template.'.$template);
+	  		$content = $m->render($template, $var_templ);
+	  		printf('<div class="row %s">%s</div>',$class,$content);
+	  	}
+  	}else{
+  		return;
+  	}
+
+  }
+
+
   /**
    * @param DisplayContext $context
    */
@@ -1580,7 +2102,17 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
     DisplayCommands::setGridColClass($context,$options);
     $grid_col_class_label = $context->get('_grid_col_1_class');
     $grid_col_class = $context->get('_grid_col_2_class');
-    $setting_json = Setting::get($options['setting_variable']);
+
+    if (is_array($options['setting_variable'])){
+    	$setting_json = array();
+    	foreach($options['setting_variable'] as $setting_var){
+    		if (is_array(Setting::get($setting_var))){
+    			$setting_json = array_merge($setting_json , Setting::get($setting_var));
+    		}
+    	}
+    }else{
+    	$setting_json = Setting::get($options['setting_variable']);
+    }
 
     if(!empty($setting_json)){
             $ex_array = array();
@@ -1600,22 +2132,14 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
 	                      }
 	                      $val1 = $v->textValue();
 	                      $ri = $v->refItem();
-
-	//                       $sel_val = $v->data();
-	//                       if(!empty($ri)){
-	//                       	if($sel_val != null){
-	//                       		if(isset($sel_val['data']['ref_label'])){
-	//                       			$value_array['value'] = $sel_val['data']['ref_label'];
-	//                       		}
-	//                       	}
-	                      	$list_array['label'] = tr($l);
-	                        $value_array['value'] = $val1;
-	                        if(!empty($ri)){
-	                        	$value_array['url'] = "/archive/item/$ri";
-	                        }else{
-	                        	$value_array['url'] = null;
-	                        }
-	                        $list_array['link_list'][] = $value_array;
+	                      $list_array['label'] = tr($l);
+	                      $value_array['value'] = $val1;
+	                      if(!empty($ri)){
+	                        $value_array['url'] = "/archive/item/$ri";
+	                      }else{
+	                        $value_array['url'] = null;
+	                      }
+	                       $list_array['link_list'][] = $value_array;
 	//                       }
 
 	                    }
@@ -2489,9 +3013,11 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
   	$label = $context->get('_title');
   	$idata = $context->getItemBasics();
 
-  	if (!empty($idata['jdata'])){
+  	$solr = Config::get('arc.SOLR_SEARCH_AS_DEFAULT',0);
+
+  	if (!empty($idata['jdata']) && $solr){
   		$json = json_decode($idata['jdata'], true);
-  		if ( !empty($json['opac1']['as_publishers']) || !empty($json['opac1']['as_pplace']) || !empty($json['opac1']['as_subj']) ){
+  		if ( !empty($json['opac1']['as_publishers']) || !empty($json['opac1']['as_pplace']) || !empty($json['opac1']['as_subj_manif']) ){
 	  		echo '<div class="row tbr">';
 
 				//as Publisher
@@ -2499,11 +3025,13 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
 
 	  			$solr_field = 'publishers_ids';
 	  			$title = 'Manifestations with publisher';
+	  			$num_of_m = $json['opac1']['as_publishers'];
 
 	  			$url = UrlPrefixes::$search_solr."?$solr_field=$item_id";
 	  			$var_templ = array(
 	  					'title' => tr($title),
 	  					'label' => $label,
+	  					'mnumber' => $num_of_m,
 	  					'url' => $url,
 	  			);
 	  			$m = new Mustache_Engine;
@@ -2517,11 +3045,13 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
 
 	  			$solr_field = 'publication_places_ids';
 	  			$title = 'Manifestations with publication place';
+	  			$num_of_m = $json['opac1']['as_pplace'];
 
 	  			$url = UrlPrefixes::$search_solr."?$solr_field=$item_id";
 	  			$var_templ = array(
 	  					'title' => tr($title),
 	  					'label' => $label,
+	  					'mnumber' => $num_of_m,
 	  					'url' => $url,
 	  			);
 	  			$m = new Mustache_Engine;
@@ -2531,15 +3061,17 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
 	  		}
 
 	  		//as Subject
-	  		if (!empty($json['opac1']['as_subj'])){
+	  		if (!empty($json['opac1']['as_subj_manif'])){
 
 	  			$solr_field = 'subjects_ids';
 	  			$title = 'Manifestations with subject';
+	  			$num_of_m = $json['opac1']['as_subj_manif'];
 
 	  			$url = UrlPrefixes::$search_solr."?$solr_field=$item_id";
 	  			$var_templ = array(
 	  					'title' => tr($title),
 	  					'label' => $label,
+// 	  					'mnumber' => $num_of_m,
 	  					'url' => $url,
 	  			);
 	  			$m = new Mustache_Engine;
@@ -2564,18 +3096,33 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
     $relation_id = Putil::safeArrGet($options, 'relation_id', null);
     $direction = Putil::safeArrGet($options, 'direction', 'both');
 
+    $object_type_filter = Putil::safeArrGet($options, 'object_type', null);
+
     $label = Putil::safeArrGet($options, 'label',null);
     $members  = DisplayCommands::_getMembers($context, $options);
+
+    $dipslay_flag = false;
+
+    ####IS_MUSICAL_RETURN
+    $ib = $context->getItemBasics();
+    if (!empty($ib['flags_json'])){
+    	$flags = json_decode($ib['flags_json'], true);
+    	if (in_array('IS:musical',$flags)){
+    		return;
+    	}
+    }
+    ########
 
     foreach($members as $row){
     	$obj_type = $row['obj_type'];
     	if ($obj_type == Config::get('arc.DB_OBJ_TYPE_AUTH-EXPRESSION') ){
     		return;
     	}
+    	$dipslay_flag = ($obj_type == $object_type_filter) ? true : false ;
     }
 
-    if (empty($members)){
-      return;
+    if ( (!empty($object_type_filter) && !$dipslay_flag) || empty($members) ){
+    	return;
     }
 
     $item_id = $context->get('_itemId');
@@ -2585,15 +3132,6 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
     $title = $context->get('_title');
 
     $list_edit_flag  = false;
-
-// 	echo('<div id="tresults">');
-// 	echo('<div class="rescnt row res-infobar">');
-// 	if (!empty($label)){
-// 		printf('<span style="float:left">%s</span>',tr($label));
-// 	}elseif (! empty($title)){
-// 		printf('<span style="float:left">Related with&nbsp; %s :</span>',tr($title));
-// 	}
-// 	echo('</div>');
 
 	  echo('<div class="sfilters header">');
 	  echo('<h2>');
@@ -2607,10 +3145,312 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
 	  echo('</div>');
 
 	  echo('<ol class="itemlist">');
-	  DisplayCommandSnipets::item_list($members, $obj_type_names,false,$list_edit_flag,true);
+	  DisplayCommandSnipets::item_list($members, $obj_type_names,false,$list_edit_flag,true, $object_type_filter);
 	  echo('</ol>');
 
   }
+
+
+  /**
+   * @param DisplayContext $context
+   */
+  public static function itemRelationsMusic($context,$options){
+
+  	$compare_field = Putil::safeArrGet($options, 'compare_field', null);
+  	$relation_id = Putil::safeArrGet($options, 'relation_id', null);
+  	$direction = Putil::safeArrGet($options, 'direction', 'both');
+
+  	$object_type_filter = Putil::safeArrGet($options, 'object_type', null);
+
+  	$label = Putil::safeArrGet($options, 'label',null);
+  	$members  = DisplayCommands::_getMembers($context, $options);
+
+  	$dipslay_flag = false;
+
+
+		#### MUSICAL
+  	$is_musical = false;
+  	$is_musical_work = false;
+  	$ib = $context->getItemBasics();
+//   	echo("<pre>");
+//   	print_r($ib);
+//   	echo("<pre>");
+  	if (!empty($ib['flags_json'])){
+  		$flags = json_decode($ib['flags_json'], true);
+  		$is_musical_work = in_array('IS:musical',$flags) ? true : false ;
+  	}
+
+  	foreach($members as $row){
+  		$obj_type = $row['obj_type'];
+  		if ( !$is_musical_work ){
+  			return;
+  		}
+  		$dipslay_flag = ($obj_type == $object_type_filter) ? true : false ;
+  	}
+
+
+  	if ( (!empty($object_type_filter) && !$dipslay_flag) || empty($members) ){
+  		return;
+  	}
+
+  	$item_id = $context->get('_itemId');
+  	$lang = $context->get('_lang');
+
+  	$obj_type_names=$context->get('_obj_type_names');
+  	$title = $context->get('_title');
+
+  	$list_edit_flag  = false;
+
+  	##WORK
+  	if($ib['obj_type'] == 'auth-work'){
+	  		$lang = get_lang();
+	  		$i=0;
+	  		$list_num = count($members);
+	  		foreach($members as $row){
+	  			//   		echo("<pre>");
+	  			//   		print_r($row);
+	  			//   		echo("<pre>");
+	  			$opac = new OpacHelper($row['jdata']);
+	  			$form = $opac->opac1('form');
+	  			if (!empty($form)){
+	  				echo('<div class="sfilters header">');
+	  				echo('<h2>');
+	  				echo $form;
+	  				echo('</h2>');
+	  				echo('</div>');
+	  			}
+	  			echo('<ol class="itemlist">');
+	  			$obj_type = $row['obj_type'];
+	  			if ($obj_type == $object_type_filter || empty( $object_type_filter) ){
+	  				$i++;
+	  				$class = ($i== $list_num) ? 'resitem last' : 'resitem';
+	  				printf('<li class="%s">', $class);
+
+	  				$thumb = null;
+	  				if (!empty($row['jdata'])){
+	  					$json = json_decode($row['jdata'], true);
+	  					if (!empty($json['opac1']['thumbs']['small'])){
+	  						$thumb = $json['opac1']['thumbs']['small'][0];
+	  					}
+	  				}
+	  				if (!empty($thumb)){
+	  					printf('<span aria-hidden="true" class="thumb_bg_s_img" style="background-image:url(/media/%s);"></span>', $thumb);
+	  				}
+
+	  				printf('<a href="/archive/item/%s?lang=%s">%s</a>',$row['item_id'], $lang, $row['title']);
+	  				//-->EXPRES
+	  				if($row['obj_type'] == 'auth-expression'){
+	  						$opac = new OpacHelper($row['jdata']);
+	  						$manifs = $opac->opac1('manifestations');
+			  			if (!empty($manifs)){
+	  				  		foreach ($manifs as $manif){
+	  				  		printf('<br>↳&nbsp<a href="/archive/item/%s?lang=%s">%s</a>',$manif['id'], $lang, $manif['title']);
+	  							}
+	  						}
+	  					}
+
+	  						echo('<div class="clearfix"></div>');
+			  		echo('</li>');
+	  				}
+	  				echo('</ol>');
+	  			}
+
+	  ##GENERIC
+  	}else{
+					echo('<div class="sfilters header">');
+					echo('<h2>');
+					if (!empty($label)){
+					$count_m = count($members);
+						printf('%s',trChoise($label,$count_m));
+					}elseif (! empty($title)){
+						printf('Related with&nbsp; %s :',tr($title));
+					}
+					echo('</h2>');
+					echo('</div>');
+
+				  	echo('<ol class="itemlist">');
+				  	###List
+				  	$lang = get_lang();
+				  	$i=0;
+				  	$list_num = count($members);
+				  	foreach($members as $row){
+				  		//   		echo("<pre>");
+				  		//   		print_r($row);
+				  		//   		echo("<pre>");
+
+				  		$obj_type = $row['obj_type'];
+				  		if ($obj_type == $object_type_filter || empty( $object_type_filter) ){
+				  			$i++;
+				  			$class = ($i== $list_num) ? 'resitem last' : 'resitem';
+				  			printf('<li class="%s">', $class);
+
+				  			$thumb = null;
+				  			if (!empty($row['jdata'])){
+				  				$json = json_decode($row['jdata'], true);
+				  				if (!empty($json['opac1']['thumbs']['small'])){
+				  					$thumb = $json['opac1']['thumbs']['small'][0];
+				  				}
+				  			}
+				  			if (!empty($thumb)){
+				  				printf('<span aria-hidden="true" class="thumb_bg_s_img" style="background-image:url(/media/%s);"></span>', $thumb);
+				  			}
+
+
+				  			##EXPRES && Auth-manifestation
+				  			if($row['obj_type'] == 'auth-expression' && $ib['obj_type'] == 'auth-manifestation'){
+				  				$opac = new OpacHelper($row['jdata']);
+				  				$manifs = $opac->opac1('works');
+				  				if (!empty($manifs)){
+				  					foreach ($manifs as $manif){
+				  						printf('<a href="/archive/item/%s?lang=%s">%s</a><br>↳&nbsp',$manif['id'], $lang, $manif['title']);
+				  					}
+				  				}
+				  			}
+
+				  			printf('<a href="/archive/item/%s?lang=%s">%s</a>',$row['item_id'], $lang, $row['title']);
+
+				  			##WORK && NOT Auth-manifestation
+				  			if($row['obj_type'] == 'auth-work' && $ib['obj_type'] != 'auth-manifestation'){
+				  				$opac = new OpacHelper($row['jdata']);
+				  				$express = $opac->opac1('expressions');
+				  				if (!empty($express) && $ib['obj_type']!='auth-expression' ){
+				  					foreach ($express as $expr){
+				  						printf('<br>↳&nbsp<a href="/archive/item/%s?lang=%s">%s</a>',$expr['id'], $lang, $expr['title']);
+				  					}
+				  				}
+				  			}
+
+				  			##EXPRES && NOT Auth-manifestation
+				  			if($row['obj_type'] == 'auth-expression' && $ib['obj_type'] != 'auth-manifestation'){
+					  					$opac = new OpacHelper($row['jdata']);
+					  					$manifs = $opac->opac1('manifestations');
+			  							if (!empty($manifs)){
+					  			  		foreach ($manifs as $manif){
+					  			  		printf('<br>↳&nbsp<a href="/archive/item/%s?lang=%s">%s</a>',$manif['id'], $lang, $manif['title']);
+					  						}
+					  					}
+					  		}
+
+				  					echo('<div class="clearfix"></div>');
+		  					echo('</li>');
+				  			}
+				  		}
+				  		#######
+				  		echo('</ol>');
+  	}
+
+  }
+
+
+
+  /**
+   * @param DisplayContext $context
+   */
+  public static function itemRelationsMusicExpress($context,$options){
+
+  	$compare_field = Putil::safeArrGet($options, 'compare_field', null);
+  	$relation_id = Putil::safeArrGet($options, 'relation_id', null);
+  	$direction = Putil::safeArrGet($options, 'direction', 'both');
+
+  	$object_type_filter = Putil::safeArrGet($options, 'object_type', null);
+
+  	$label = Putil::safeArrGet($options, 'label',null);
+  	$members  = DisplayCommands::_getMembers($context, $options);
+
+  	$dipslay_flag = false;
+
+
+  	#### MUSICAL
+  	$is_musical = false;
+  	$ib = $context->getItemBasics();
+  	//   	echo("<pre>");
+  	//   	print_r($ib);
+  	//   	echo("<pre>");
+  	if (!empty($ib['flags_json'])){
+  		$flags = json_decode($ib['flags_json'], true);
+  		$is_musical_work = in_array('IS:musical',$flags) ? true : false ;
+  	}
+
+  	foreach($members as $row){
+  		$obj_type = $row['obj_type'];
+  		if ( !$is_musical_work ){
+  			return;
+  		}
+  		$dipslay_flag = ($obj_type == $object_type_filter) ? true : false ;
+  	}
+
+
+  	if ( (!empty($object_type_filter) && !$dipslay_flag) || empty($members) ){
+  		return;
+  	}
+
+  	$item_id = $context->get('_itemId');
+  	$lang = $context->get('_lang');
+
+  	$obj_type_names=$context->get('_obj_type_names');
+  	$title = $context->get('_title');
+
+  	$list_edit_flag  = false;
+
+  	##EXPRESSION
+  	if($ib['obj_type'] == 'auth-expression'){
+  		$lang = get_lang();
+  		$i=0;
+  		$list_num = count($members);
+  		foreach($members as $row){
+//   			  		echo("<pre>");
+//   			  		print_r($row);
+//   			  		echo("<pre>");
+  			$opac = new OpacHelper($row['jdata']);
+  			$form = $opac->opac1('form');
+  			if (!empty($form)){
+  				echo('<div class="sfilters header">');
+  				echo('<h2>');
+  				echo $form;
+  				echo('</h2>');
+  				echo('</div>');
+  			}
+  			echo('<ol class="itemlist">');
+  			$obj_type = $row['obj_type'];
+  			if ($obj_type == $object_type_filter || empty( $object_type_filter) ){
+  				$i++;
+  				$class = ($i== $list_num) ? 'resitem last' : 'resitem';
+  				printf('<li class="%s">', $class);
+
+  				$thumb = null;
+  				if (!empty($row['jdata'])){
+  					$json = json_decode($row['jdata'], true);
+  					if (!empty($json['opac1']['thumbs']['small'])){
+  						$thumb = $json['opac1']['thumbs']['small'][0];
+  					}
+  				}
+  				if (!empty($thumb)){
+  					printf('<span aria-hidden="true" class="thumb_bg_s_img" style="background-image:url(/media/%s);"></span>', $thumb);
+  				}
+
+  				printf('<a href="/archive/item/%s?lang=%s">%s</a>',$row['item_id'], $lang, $row['title']);
+  				//-->EXPRES
+  				if($row['obj_type'] == 'auth-expression'){
+  					$opac = new OpacHelper($row['jdata']);
+  					$manifs = $opac->opac1('manifestations');
+  					if (!empty($manifs)){
+  						foreach ($manifs as $manif){
+  							printf('<br>↳&nbsp<a href="/archive/item/%s?lang=%s">%s</a>',$manif['id'], $lang, $manif['title']);
+  						}
+  					}
+  				}
+
+  				echo('<div class="clearfix"></div>');
+  				echo('</li>');
+  			}
+  			echo('</ol>');
+  		}
+
+  	}
+  }
+
+
+
 
 
   /**
@@ -2671,7 +3511,10 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
 	  						echo('<div class="sfilters header">');
 	    					echo('<h2>');
 	  						if (!empty($label)){
-	  							printf('%s %s %s',tr("Συμμετέχει ως"),tr($label),tr("σε:"));
+// 	  							printf('%s %s %s:',tr("Participates as"),tr($label),tr("in"));
+// 	  							printf('%s %s:',tr($label),tr("in Works"));
+// 	  							printf('%s %s:',tr("Participates as"),tr($label));
+	  							printf('%s:',tr($label));
 	  						}elseif (! empty($title)){
 	  							printf('Related with&nbsp; %s :',tr($title));
 	 						 }
@@ -2810,91 +3653,160 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
   	$relation_id = Putil::safeArrGet($options, 'relation_id', null);
   	$direction = Putil::safeArrGet($options, 'direction', 'both');
   	$label = Putil::safeArrGet($options, 'label',null);
+  	$mode_view = Putil::safeArrGet($options, 'mode_view', 1);
   	$members  = DisplayCommands::_getMembers($context, $options);
 
-  	if (empty($members)){
-  		return;
-  	}
-
-  	$has_pitem = false;
-  	foreach($members as $m){
-	  	if (in_array('physical-item',$m)) {
-	  		$has_pitem = true;
-	  	}
-  	}
-  	if (!$has_pitem){
-  		return;
-  	}
-
-  	$lang = $context->get('_lang');
   	$title = $context->get('_title');
 
-  	echo('<table id="physical-items" class="table table-striped table-bordered members">');
-	  		echo('<caption class="sfilters header">');
-	  		if (!empty($label)){
-	  			printf('<h2>%s</h2>',tr($label));
-	  		}elseif (! empty($title)){
-	  			printf('<h2>Related with&nbsp; %s :</h2>',tr($title));
-	  		}
-	  		echo('</caption>');
+  	if ($mode_view == 1){
 
-	  		echo('<thead>');
-	  			echo("<tr>\n");
-			  		printf('<th>%s</th>',tr('Type'));
-			  		printf('<th>%s</th>',tr('Sublocation'));
-			  		printf('<th>%s</th>',tr('Location'));
-						printf('<th>%s</th>',tr('Barcode'));
-						printf('<th>%s</th>',tr('Classification'));
-						printf('<th>%s</th>',tr('Part number'));
-						printf('<th>%s</th>',tr('Copy number'));
-						printf('<th>%s</th>',tr('Link'));
-	  			echo("</tr>\n");
-	  		echo('</thead>');
-	  		echo('<tbody valign="top">');
-	  		echo("\n");
-		  		foreach($members as $row){
-						if ($row['obj_type'] == 'physical-item'){
-							if (!empty($row['jdata'])){
-								$opac = new OpacHelper($row['jdata']);
-			  				$pitem_id = $opac->opac1('id');
-			  				echo("<tr>\n");
-			  						echo("<td>");
-			  								echo $opac->opac1('type');
-			  						echo("</td>");
-			      				echo('<td>');
-			  								echo $opac->opac1('sublocation');
-			  		     		echo('</td>');
-			  		     		echo('<td>');
-			  		     				echo $opac->opac1('location');
-			  		     		echo('</td>');
-			  		     		echo('<td>');
-			  		     				echo $opac->opac1('barcode');
-			  		     		echo('</td>');
-			  		     		echo('<td>');
-			  		     				echo $opac->opac1('classification');
-			  		     		echo('</td>');
-			  		     		echo('<td>');
-			  		     				echo $opac->opac1('part');
-			  		     		echo('</td>');
-										echo('<td>');
-												echo  $opac->opac1('copyNumber');
-			  						echo('</td>');
-			  						echo('<td>');
-					  						if (user_access_admin() ){
-					  							printf(' <a href="%s%s" target="_blank">[%s]</a> ',UrlPrefixes::$item_edit, $pitem_id,tr('edit'));
-					  							printf(' <a href="%s%s" target="_blank">[%s]</a> ',UrlPrefixes::$item_admin, $pitem_id,tr('admin'));
-					  							printf(' <a href="%s%s" target="_blank">[%s]</a> ',UrlPrefixes::$item_opac, $pitem_id,tr('opac'));
-					  						}else{
-					  							printf(' <a href="%s%s" target="_blank">[%s]</a> ',UrlPrefixes::$item_opac, $pitem_id,tr('More information'));
-					  						}
-			  						echo('</td>');
+  		if (empty($members)){
+  			return;
+  		}else{
+  			$has_pitem = false;
+  			foreach($members as $m){
+  				if (in_array('physical-item',$m)) {
+  					$has_pitem = true;
+  				}
+  			}
+  			if (!$has_pitem){
+  				return;
+  			}
+  		}
 
-			  				echo("</tr>\n");
-							}
-						}
+	  	echo('<table id="physical-items" class="table table-striped table-bordered members">');
+		  		echo('<caption class="sfilters header">');
+		  		if (!empty($label)){
+		  			printf('<h2>%s</h2>',tr($label));
+		  		}elseif (! empty($title)){
+		  			printf('<h2>Related with&nbsp; %s :</h2>',tr($title));
 		  		}
-  		echo('</tbody>');
-  	echo('</table>');
+		  		echo('</caption>');
+
+		  		echo('<thead>');
+		  			echo("<tr>\n");
+				  		printf('<th>%s</th>',tr('Type'));
+				  		printf('<th>%s</th>',tr('Sublocation'));
+				  		printf('<th>%s</th>',tr('Location'));
+							printf('<th>%s</th>',tr('Barcode'));
+							printf('<th>%s</th>',tr('Classification'));
+							printf('<th>%s</th>',tr('Part number'));
+							printf('<th>%s</th>',tr('Copy number'));
+							printf('<th>%s</th>',tr('Link'));
+		  			echo("</tr>\n");
+		  		echo('</thead>');
+		  		echo('<tbody valign="top">');
+		  		echo("\n");
+			  		foreach($members as $row){
+							if ($row['obj_type'] == 'physical-item'){
+								if (!empty($row['jdata'])){
+									$opac = new OpacHelper($row['jdata']);
+				  				$pitem_id = $opac->opac1('id');
+				  				echo("<tr>\n");
+				  						echo("<td>");
+				  								echo $opac->opac1('type');
+				  						echo("</td>");
+				      				echo('<td>');
+				  								echo $opac->opac1('sublocation');
+				  		     		echo('</td>');
+				  		     		echo('<td>');
+				  		     				echo $opac->opac1('location');
+				  		     		echo('</td>');
+				  		     		echo('<td>');
+				  		     				echo $opac->opac1('barcode');
+				  		     		echo('</td>');
+				  		     		echo('<td>');
+				  		     				echo $opac->opac1('classification');
+				  		     		echo('</td>');
+				  		     		echo('<td>');
+				  		     				echo $opac->opac1('part');
+				  		     		echo('</td>');
+											echo('<td>');
+													echo  $opac->opac1('copyNumber');
+				  						echo('</td>');
+				  						echo('<td>');
+						  						if (user_access_admin() ){
+						  							printf(' <a href="%s%s" target="_blank">[%s]</a> ',UrlPrefixes::$item_edit, $pitem_id,tr('edit'));
+						  							printf(' <a href="%s%s" target="_blank">[%s]</a> ',UrlPrefixes::$item_admin, $pitem_id,tr('admin'));
+						  							printf(' <a href="%s%s" target="_blank">[%s]</a> ',UrlPrefixes::$item_opac, $pitem_id,tr('opac'));
+						  						}else{
+						  							printf(' <a href="%s%s" target="_blank">[%s]</a> ',UrlPrefixes::$item_opac, $pitem_id,tr('More information'));
+						  						}
+				  						echo('</td>');
+
+				  				echo("</tr>\n");
+								}
+							}
+			  		}
+	  		echo('</tbody>');
+	  	echo('</table>');
+  	}elseif ($mode_view == 2){
+
+  		$idata = $context->getItemBasics();
+  		if (!empty($idata['jdata'])){
+  			$json = json_decode($idata['jdata'], true);
+  			if ( !empty($json['opac1']['physical-items']) ){
+  				$physical_items = $json['opac1']['physical-items'];
+
+  				echo('<table id="physical-items" class="table table-striped table-bordered members">');
+  				echo('<caption class="sfilters header">');
+  				if (!empty($label)){
+  					printf('<h2>%s</h2>',tr($label));
+  				}elseif (! empty($title)){
+  					printf('<h2>Related with&nbsp; %s :</h2>',tr($title));
+  				}
+  				echo('</caption>');
+  				echo('<thead>');
+  				echo("<tr>\n");
+  				printf('<th>%s</th>',tr('Type'));
+  				printf('<th>%s</th>',tr('Location'));
+
+  				printf('<th>%s</th>',tr('Location in library'));
+  				printf('<th>%s</th>',tr('Office code'));
+  				printf('<th>%s</th>',tr('Barcode'));
+  				printf('<th>%s</th>',tr('Owner'));
+
+
+  				printf('<th>%s</th>',tr('Link'));
+  				echo("</tr>\n");
+  				echo('</thead>');
+  				echo('<tbody valign="top">');
+  				echo("\n");
+  				foreach($physical_items as $row){
+  					if ($row['title'] == 'physical-item'){
+  							$pitem_id = $row['id'];
+  							echo("<tr>\n");
+  							echo("<td>");
+  							echo $row['type'];
+  							echo("</td>");
+  							echo('<td>');
+  							echo $row['location'];
+  							echo('</td>');
+  							echo('<td>');
+  							echo $row['sublocation'];
+  							echo('</td>');
+  							echo('<td>');
+  							echo $row['office_code'];
+  							echo('</td>');
+  							echo('<td>');
+  							echo $row['barcode'];
+  							echo('</td>');
+  							echo('<td>');
+  							echo $row['owner'];
+  							echo('</td>');
+  							echo('<td>');
+  							printf(' <a href="%s%s" target="_blank">[%s]</a> ',UrlPrefixes::$item_opac, $pitem_id,tr('More information'));
+  							echo('</td>');
+
+  							echo("</tr>\n");
+  					}
+  				}
+  				echo('</tbody>');
+  				echo('</table>');
+  			}
+  		}
+
+  	}
 
   }
 
@@ -3043,6 +3955,47 @@ $context->set('_grid_class_prefix',$grid_class_prefix);
     }
     return $members;
   }
+
+
+  /**
+   * @param DisplayContext $context
+   */
+  public static function itemRelationOneLine($context,$options){
+
+  	$label = Putil::safeArrGet($options, 'label',null);
+  	$labelWidth = Putil::safeArrGet($options, 'label_width',$context->get('_label_width'));
+  	$members  = DisplayCommands::_getMembers($context, $options);
+
+  	if (empty($members)){
+  		return;
+  	}
+
+  	echo('<div class="sfilters header">');
+  	echo('<h2>');
+  	if (!empty($label)){
+  		$count_m = count($members);
+  		printf('%s',trChoise($label,$count_m));
+  	}elseif (! empty($title)){
+  		printf('Related with&nbsp; %s :',tr($title));
+  	}
+  	echo('</h2>');
+  	echo('</div>');
+  	echo('<div class="itemline">');
+
+  	$cnt_mbr = count($members);
+  	$c = 0;
+  	foreach ($members as $k=>$v){
+  		printf('<span class="relation_line"><a href="/archive/item/%s">%s</a></span>',$v['item_id'],$v['title']);
+  		$c+=1;
+  		if($c < $cnt_mbr){
+  		echo(" | ");
+  		}
+  	};
+
+  	echo('</div>');
+  }
+
+
 
   /**
    * @param DisplayContext $context
@@ -3230,7 +4183,7 @@ class DisplayCommandSnipets {
 
 
 
-  public static function item_list($result, $obj_type_names, $edit_flag = false, $list_edit_flag = false, $small_img_flag = false){
+  public static function item_list($result, $obj_type_names, $edit_flag = false, $list_edit_flag = false, $small_img_flag = false, $object_type_filter = null){
 
     #####################################################################################
     ### TABLE BODY LIST
@@ -3250,224 +4203,253 @@ class DisplayCommandSnipets {
 
     $list_num = count($result);
 
+
     foreach($result as $row){
-      $i++;
+
+//     	echo("<pre>");
+//     	print_r($row);
+//     	echo("<pre>");
+
       $obj_type = $row['obj_type'];
       $folder_flag = $row['folder'];
       $folders = $row['folders'];
 
-      if (!PUtil::isEmpty($folders)){
-        $folders = sprintf('(%s)',$folders);
-      }
+      if ($obj_type == $object_type_filter || empty( $object_type_filter) ){
 
-      if (empty($row['bibref'])){
-      $download_img = $download;
-      } else {
-      $download_img = $no_download;
+      	$i++;
+
+	      if (!PUtil::isEmpty($folders)){
+	        $folders = sprintf('(%s)',$folders);
+	      }
+
+	      if (empty($row['bibref'])){
+	    	  $download_img = $download;
+	      } else {
+	     	 $download_img = $no_download;
+	    	}
+
+	    $class = ($i== $list_num) ? 'resitem last' : 'resitem';
+	    printf('<li class="%s">', $class);
+
+	//         $thumb = $row['thumb'];
+	        $pages = $row['pages'];
+	        if (!empty($pages)){
+	        $pagesStr = sprintf('<br/> %s: %s', tr('σελιδες'), $pages);
+	        } else {
+	        $pagesStr = "";
+	        }
+	            if ($folder_flag){
+	          $txt = ($obj_type == Config::get('arc.DB_OBJ_TYPE_WEBSITE'))? tr('σελίδες') : ($obj_type == Config::get('arc.DB_OBJ_TYPE_SILOGI')) ? tr('τεκμήρια'): tr('τεύχη') ;
+	              $tefxiStr = sprintf('<br/>%s:%s',$txt , coalesce($row['issue_cnt'],'1'));
+	          } else {
+	          $tefxiStr= "";
+	      }
+	              if ($edit_flag){
+	                $tefxiStr .= sprintf('<br>id: %s 	&#160; 	&#160; status: <a href="/archive/recent?s=%s">%s</a>  ',$row['item_id'],$row['status'],$row['status']);
+	                if (! empty($row['user_create'])){
+	                $tefxiStr .= sprintf('&#160; &#160;  create: %s',$row['user_create']);
+	        }
+	        if (! empty($row['user_update'])){
+	                $tefxiStr .= sprintf('&#160; &#160;  update: %s',$row['user_update']);
+	        }
+
+	        $dt = coalesce($row['dt_update'], $row['dt_create']);
+
+	          $phpdate = strtotime( $dt );
+	              $tefxiStr .= sprintf('&#160; &#160; %s',date('d/m/Y',strtotime( $dt )));
+	                }
+
+	               $thumb = null;
+	               if (!empty($row['jdata'])){
+	               	$json = json_decode($row['jdata'], true);
+		               if (!empty($json['opac1']['thumbs']['small'])){
+		               		$thumb = $json['opac1']['thumbs']['small'][0];
+		               	}
+	               }
+
+	              if (!empty($thumb)){
+	                    printf('<span aria-hidden="true" class="thumb_bg_s_img" style="background-image:url(/media/%s);"></span>', $thumb);
+	              }else{
+	                    if ($obj_type == 'silogi'){
+	                        printf('<a href="/archive/item/%s?lang=%s" title="%s" aria-hidden="true"><img class="%s" src="/_assets/img/books4_64.png" alt="%s"/></a>',$row['item_id'],$lang,htmlspecialchars($row['title']), $img_class1, htmlspecialchars($row['title']));
+	                    }
+	              }
+
+	              if (!empty($row['jdata'])){
+	                $json = json_decode($row['jdata'], true);
+	                if (!empty($json['opac1']['public_title']['title'])){
+	                	$title = $json['opac1']['public_title']['title'];
+	                }else if (! empty($json['label'])){
+	                	$title = $json['label'];
+		            	}
+	              }
+	              if (empty($title)){
+	              	$title = $row['title'];
+	              }
+	              if (empty($title)){
+	              	$title = $row['item_id'];
+	              }
+
+	              printf('<a href="/archive/item/%s?lang=%s">%s</a> %s %s %s %s %s',$row['item_id'], $lang, $title ,$row['place'],$row['year'], $folders, $pagesStr, $tefxiStr);
+
+
+	              //LIST-WORK
+	              //WORKS (individual,independent)
+	              if (!empty($json['opac1']['independent_works'])){
+	              	$relation_work_wholepart_map = Setting::get('relation_work_wholepart_map');
+	              	$independent_works = $json['opac1']['independent_works'];
+	              	$delimiter = true;
+	              	$works_array  = array();
+	              	foreach ($independent_works as $indw){
+	              		if (($indw === end($independent_works))){
+	              			$delimiter = false;
+	              		}
+	              		if(empty($indw['label'])){
+	              			$indw['label']=$indw['id'];
+	              		}
+
+	              		$works_array[]  = array('label' => $indw['label'], 'id' => $indw['id'], 'delimiter' => $delimiter);
+	              	}
+
+	              	$var_templ_contained = array(
+	              			'list_title' => tr($relation_work_wholepart_map['ea:relation:containerOfIndependent']),
+	              			'works_array' => $works_array,
+	              	);
+	              	$m = new Mustache_Engine;
+
+	              	$template_contained = Config::get('arc_display_template.work_contained');
+	              	$content = $m->render($template_contained,$var_templ_contained);
+	              	echo $content;
+	              	//SR-ONLY
+	              	$template_contained2 = Config::get('arc_display_template_sr-only.work_contained');
+	              	$content2 = $m->render($template_contained2,$var_templ_contained);
+	              	echo $content2;
+	              }
+
+	              //WORKS (contributions)
+	              if (!empty($json['opac1']['contained_contributions'])){
+	              	$relation_work_wholepart_map = Setting::get('relation_work_wholepart_map');
+	              	$contributions_works = $json['opac1']['contained_contributions'];
+	              	$delimiter = true;
+	              	$works_array  = array();
+	              	foreach ($contributions_works as $contrw){
+	              		if (($contrw === end($contributions_works))){
+	              			$delimiter = false;
+	              		}
+	              		if(empty($contrw['label'])){
+	              			$contrw['label']=$contrw['id'];
+	              		}
+
+	              		$works_array[]  = array('label' => $contrw['label'], 'id' => $contrw['id'], 'delimiter' => $delimiter);
+	              	}
+
+	              	$var_templ_contained = array(
+	              			'list_title' => tr($relation_work_wholepart_map['ea:relation:containerOfContributions']),
+	              			'works_array' => $works_array,
+	              	);
+	              	$m = new Mustache_Engine;
+
+	              	$template_contained = Config::get('arc_display_template.work_contained');
+	              	$content = $m->render($template_contained,$var_templ_contained);
+	              	echo $content;
+	              		//SR-ONLY
+	              	$template_contained2 = Config::get('arc_display_template_sr-only.work_contained');
+	              	$content2 = $m->render($template_contained2,$var_templ_contained);
+	              	echo $content2;
+	              }
+
+	              //WORKS (documents)
+	              if (!empty($json['opac1']['contained_documents'])){
+	              	$relation_work_wholepart_map = Setting::get('relation_work_wholepart_map');
+	              	$documents_works = $json['opac1']['contained_documents'];
+	              	$delimiter = true;
+	              	$works_array  = array();
+	              	foreach ($documents_works as $documw){
+	              		if (($documw === end($documents_works))){
+	              			$delimiter = false;
+	              		}
+	              		if(empty($documw['label'])){
+	              			$documw['label']=$documw['id'];
+	              		}
+
+	              		$works_array[]  = array('label' => $documw['label'], 'id' => $documw['id'], 'delimiter' => $delimiter);
+	              	}
+
+	              	$var_templ_contained = array(
+	              			'list_title' => tr($relation_work_wholepart_map['ea:relation:containerOfDocuments']),
+	              			'works_array' => $works_array,
+	              	);
+	              	$m = new Mustache_Engine;
+
+	              	$template_contained = Config::get('arc_display_template.work_contained');
+	              	$content = $m->render($template_contained,$var_templ_contained);
+	              	echo $content;
+	              	//SR-ONLY
+	              	$template_contained2 = Config::get('arc_display_template_sr-only.work_contained');
+	              	$content2 = $m->render($template_contained2,$var_templ_contained);
+	              	echo $content2;
+	              }
+	              //*
+
+
+	//               //LIST-MANIF
+	//               //WORKS (individual,independent)
+	//               if (!empty($json['opac1']['contained_independent_works'])){
+	//               	$relation_work_wholepart_map = Setting::get('relation_work_wholepart_map');
+	//               	$contained_independent_works = $json['opac1']['contained_independent_works'];
+	//               	$delimiter = true;
+	//               	$works_array  = array();
+	//               	$works_array2  = array();
+	//               	foreach ($contained_independent_works as $ciw){
+	//               		if (($ciw === end($contained_independent_works))){
+	//               			$delimiter = false;
+	//               		}
+	//               		$works_array[]  = array('label' => $ciw['label'], 'id' => $ciw['id'], 'delimiter' => $delimiter);
+	//               	}
+	// //               	 if (!empty($json['opac1']['container_individual_works'])){
+	// //               	 		$container_individual_works = $json['opac1']['container_individual_works'];
+	// //               	 		$delimiter2 = true;
+	// //               	 		foreach ($container_individual_works as $ciw2){
+	// //               	 			if (($ciw2 === end($container_individual_works))){
+	// //               	 				$delimiter2 = false;
+	// //               	 			}
+	// //               	 			$works_array2[]  = array('label' => $ciw2['label'], 'id' => $ciw2['id'], 'delimiter' => $delimiter2);
+	// //               	 		}
+	// //               	 }
+	//               	$var_templ_contained = array(
+	//               			'list_title' => $relation_work_wholepart_map['ea:relation:containerOfIndependent'],
+	//               			'works_array' => $works_array,
+	// //               			'list_title2' => $relation_work_wholepart_map['ea:relation:containedInIndividual'],
+	// //               			'works_array2' => $works_array2,
+	//               	);
+	//               	$m = new Mustache_Engine;
+
+	//               	$template_contained = Config::get('arc_display_template.manifestation_contained');
+	//               	$content = $m->render($template_contained,$var_templ_contained);
+	//               	echo $content;
+	//               		//SR-ONLY
+	//               	$template_contained2 = Config::get('arc_display_template_sr-only.manifestation_contained');
+	//               	$content2 = $m->render($template_contained2,$var_templ_contained);
+	//               	echo $content2;
+	//               }
+	//               //*
+
+// 	              if($row['obj_type'] == 'auth-expression'){
+// 		              $opac = new OpacHelper($row['jdata']);
+// 		              $manifs = $opac->opac1('manifestations');
+// 		              if (!empty($manifs)){
+// 		              	foreach ($manifs as $manif){
+// 		              		printf('<br>↳&nbsp<a href="/archive/item/%s?lang=%s">%s</a>',$manif['id'], $lang, $manif['title']);
+// 		              	}
+// 		              }
+// 	              }
+
+	              echo('<div class="clearfix"></div>');
+	              echo('</li>');
+
+			}
+
     }
-
-    $class = ($i== $list_num) ? 'resitem last' : 'resitem';
-    printf('<li class="%s">', $class);
-
-        $thumb = $row['thumb'];
-        $pages = $row['pages'];
-        if (!empty($pages)){
-        $pagesStr = sprintf('<br/> %s: %s', tr('σελιδες'), $pages);
-        } else {
-        $pagesStr = "";
-        }
-            if ($folder_flag){
-          $txt = ($obj_type == Config::get('arc.DB_OBJ_TYPE_WEBSITE'))? tr('σελίδες') : ($obj_type == Config::get('arc.DB_OBJ_TYPE_SILOGI')) ? tr('τεκμήρια'): tr('τεύχη') ;
-              $tefxiStr = sprintf('<br/>%s:%s',$txt , coalesce($row['issue_cnt'],'1'));
-          } else {
-          $tefxiStr= "";
-      }
-              if ($edit_flag){
-                $tefxiStr .= sprintf('<br>id: %s 	&#160; 	&#160; status: <a href="/archive/recent?s=%s">%s</a>  ',$row['item_id'],$row['status'],$row['status']);
-                if (! empty($row['user_create'])){
-                $tefxiStr .= sprintf('&#160; &#160;  create: %s',$row['user_create']);
-        }
-        if (! empty($row['user_update'])){
-                $tefxiStr .= sprintf('&#160; &#160;  update: %s',$row['user_update']);
-        }
-
-        $dt = coalesce($row['dt_update'], $row['dt_create']);
-
-          $phpdate = strtotime( $dt );
-              $tefxiStr .= sprintf('&#160; &#160; %s',date('d/m/Y',strtotime( $dt )));
-                }
-
-              if (! empty($thumb)){
-                    printf('<span aria-hidden="true" class="thumb_bg_s_img" style="background-image:url(/media/%s);"></span>', $thumb);
-              }else{
-                    if ($obj_type == 'silogi'){
-                        printf('<a href="/archive/item/%s?lang=%s" title="%s" aria-hidden="true"><img class="%s" src="/_assets/img/books4_64.png" alt="%s"/></a>',$row['item_id'],$lang,htmlspecialchars($row['title']), $img_class1, htmlspecialchars($row['title']));
-                    }
-              }
-
-              if (!empty($row['jdata'])){
-                $json = json_decode($row['jdata'], true);
-                if (!empty($json['opac1']['public_title']['title'])){
-                	$title = $json['opac1']['public_title']['title'];
-                }else if (! empty($json['label'])){
-                	$title = $json['label'];
-	            	}
-              }
-              if (empty($title)){
-              	$title = $row['title'];
-              }
-              if (empty($title)){
-              	$title = $row['item_id'];
-              }
-
-              printf('<a href="/archive/item/%s?lang=%s">%s</a> %s %s %s %s %s',$row['item_id'], $lang, $title ,$row['place'],$row['year'], $folders, $pagesStr, $tefxiStr);
-
-
-              //LIST-WORK
-              //WORKS (individual,independent)
-              if (!empty($json['opac1']['independent_works'])){
-              	$relation_work_wholepart_map = Setting::get('relation_work_wholepart_map');
-              	$independent_works = $json['opac1']['independent_works'];
-              	$delimiter = true;
-              	$works_array  = array();
-              	foreach ($independent_works as $indw){
-              		if (($indw === end($independent_works))){
-              			$delimiter = false;
-              		}
-              		if(empty($indw['label'])){
-              			$indw['label']=$indw['id'];
-              		}
-
-              		$works_array[]  = array('label' => $indw['label'], 'id' => $indw['id'], 'delimiter' => $delimiter);
-              	}
-
-              	$var_templ_contained = array(
-              			'list_title' => $relation_work_wholepart_map['ea:relation:containerOfIndependent'],
-              			'works_array' => $works_array,
-              	);
-              	$m = new Mustache_Engine;
-
-              	$template_contained = Config::get('arc_display_template.work_contained');
-              	$content = $m->render($template_contained,$var_templ_contained);
-              	echo $content;
-              	//SR-ONLY
-              	$template_contained2 = Config::get('arc_display_template_sr-only.work_contained');
-              	$content2 = $m->render($template_contained2,$var_templ_contained);
-              	echo $content2;
-              }
-
-              //WORKS (contributions)
-              if (!empty($json['opac1']['contained_contributions'])){
-              	$relation_work_wholepart_map = Setting::get('relation_work_wholepart_map');
-              	$contributions_works = $json['opac1']['contained_contributions'];
-              	$delimiter = true;
-              	$works_array  = array();
-              	foreach ($contributions_works as $contrw){
-              		if (($contrw === end($contributions_works))){
-              			$delimiter = false;
-              		}
-              		if(empty($contrw['label'])){
-              			$contrw['label']=$contrw['id'];
-              		}
-
-              		$works_array[]  = array('label' => $contrw['label'], 'id' => $contrw['id'], 'delimiter' => $delimiter);
-              	}
-
-              	$var_templ_contained = array(
-              			'list_title' => $relation_work_wholepart_map['ea:relation:containerOfContributions'],
-              			'works_array' => $works_array,
-              	);
-              	$m = new Mustache_Engine;
-
-              	$template_contained = Config::get('arc_display_template.work_contained');
-              	$content = $m->render($template_contained,$var_templ_contained);
-              	echo $content;
-              		//SR-ONLY
-              	$template_contained2 = Config::get('arc_display_template_sr-only.work_contained');
-              	$content2 = $m->render($template_contained2,$var_templ_contained);
-              	echo $content2;
-              }
-
-              //WORKS (documents)
-              if (!empty($json['opac1']['contained_documents'])){
-              	$relation_work_wholepart_map = Setting::get('relation_work_wholepart_map');
-              	$documents_works = $json['opac1']['contained_documents'];
-              	$delimiter = true;
-              	$works_array  = array();
-              	foreach ($documents_works as $documw){
-              		if (($documw === end($documents_works))){
-              			$delimiter = false;
-              		}
-              		if(empty($documw['label'])){
-              			$documw['label']=$documw['id'];
-              		}
-
-              		$works_array[]  = array('label' => $documw['label'], 'id' => $documw['id'], 'delimiter' => $delimiter);
-              	}
-
-              	$var_templ_contained = array(
-              			'list_title' => $relation_work_wholepart_map['ea:relation:containerOfDocuments'],
-              			'works_array' => $works_array,
-              	);
-              	$m = new Mustache_Engine;
-
-              	$template_contained = Config::get('arc_display_template.work_contained');
-              	$content = $m->render($template_contained,$var_templ_contained);
-              	echo $content;
-              	//SR-ONLY
-              	$template_contained2 = Config::get('arc_display_template_sr-only.work_contained');
-              	$content2 = $m->render($template_contained2,$var_templ_contained);
-              	echo $content2;
-              }
-              //*
-
-
-//               //LIST-MANIF
-//               //WORKS (individual,independent)
-//               if (!empty($json['opac1']['contained_independent_works'])){
-//               	$relation_work_wholepart_map = Setting::get('relation_work_wholepart_map');
-//               	$contained_independent_works = $json['opac1']['contained_independent_works'];
-//               	$delimiter = true;
-//               	$works_array  = array();
-//               	$works_array2  = array();
-//               	foreach ($contained_independent_works as $ciw){
-//               		if (($ciw === end($contained_independent_works))){
-//               			$delimiter = false;
-//               		}
-//               		$works_array[]  = array('label' => $ciw['label'], 'id' => $ciw['id'], 'delimiter' => $delimiter);
-//               	}
-// //               	 if (!empty($json['opac1']['container_individual_works'])){
-// //               	 		$container_individual_works = $json['opac1']['container_individual_works'];
-// //               	 		$delimiter2 = true;
-// //               	 		foreach ($container_individual_works as $ciw2){
-// //               	 			if (($ciw2 === end($container_individual_works))){
-// //               	 				$delimiter2 = false;
-// //               	 			}
-// //               	 			$works_array2[]  = array('label' => $ciw2['label'], 'id' => $ciw2['id'], 'delimiter' => $delimiter2);
-// //               	 		}
-// //               	 }
-//               	$var_templ_contained = array(
-//               			'list_title' => $relation_work_wholepart_map['ea:relation:containerOfIndependent'],
-//               			'works_array' => $works_array,
-// //               			'list_title2' => $relation_work_wholepart_map['ea:relation:containedInIndividual'],
-// //               			'works_array2' => $works_array2,
-//               	);
-//               	$m = new Mustache_Engine;
-
-//               	$template_contained = Config::get('arc_display_template.manifestation_contained');
-//               	$content = $m->render($template_contained,$var_templ_contained);
-//               	echo $content;
-//               		//SR-ONLY
-//               	$template_contained2 = Config::get('arc_display_template_sr-only.manifestation_contained');
-//               	$content2 = $m->render($template_contained2,$var_templ_contained);
-//               	echo $content2;
-//               }
-//               //*
-
-
-              echo('<div class="clearfix"></div>');
-              echo('</li>');
-              }
   }
 
 
@@ -3780,10 +4762,3 @@ class DisplayCommandSnipets {
 
 
 }
-
-
-
-?>
-
-
-

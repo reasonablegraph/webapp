@@ -4,181 +4,403 @@ class SearchController extends BaseController
 {
 
 
-	function solr_search(){
-		Log::info("#SearchController@solr_search");
+  public function solr2_search() {
+    // $input_all = Input::all();
 
-		//SEARCH VAR
-		$m = get_get('m');
-		if (empty($m)) {
-			$m = 's';
-		}
+    $m = 's';
+    $submit = get_get('submit');
+    $term = get_get('term');
+    $l = get_get('l');
+    $y = get_get('y');
+    $a = get_get('a');
+    $p = get_get('p');
 
-		$submit = get_get('submit');
-		$term = get_get('term');
-		$l = get_get('l');
-		$y = get_get('y');
-		$a = get_get('a');
-		$p = get_get('p');
-		$subj = get_get('subj');
-		$display_lang_select_flag = variable_get('arc_search_display_lang_select');
-		$publication_places_ids = get_get('publication_places_ids');
-		$publishers_ids = get_get('publishers_ids');
-		$subjects_ids = get_get('subjects_ids');
+    $hide_search_form = false;
+    if (!empty($term)) {
+      $hide_search_form = true;
+    } else if (empty($term) && $submit) {
+      $hide_search_form = true;
+    }
 
-		$list_mode = null;
-		$f_label = null;
-		if (!empty($publication_places_ids)){
-			$list_mode = 'ppl';
-			$f_label = PDao::getItemLabel($publication_places_ids);
-		}else if(!empty($publishers_ids)){
-			$list_mode = 'pub';
-			$f_label = PDao::getItemLabel($publishers_ids);
-		}else if(!empty($subjects_ids)){
-			$list_mode = 'subj';
-			$f_label = PDao::getItemLabel($subjects_ids);
-		}
+    $emptyTermFlag = empty($term);
+    //PUtil::logRed("TERM1: " . $term);
 
 
-		$hide_search_form = false;
-		if (!empty($term)) {
-			$hide_search_form = true;
-		} else if (empty($term) && $submit) {
-			$hide_search_form = true;
-		}
-
-		// pagination
-		$start = PUtil::reset_int(get_get("start"), 0);
+    $page = PUtil::reset_int(get_get("page"), 1) < 0 ? 1 : PUtil::reset_int(get_get("page"), 1);
+    $limit = Config::get('arc.PAGING_LIMIT');
+    $start = $page * $limit - $limit;
+//     $start = PUtil::reset_int(get_get("start"), 0);
 
 
-		$solr_filters_def = array(
-			'manifestation'=>array('subjects_manif','publication_places','publication_places_with_ids','publication_types','publishers','publishers_with_ids','digital_item_types','languages'),
-//			'person'=>array(),
-//			'organization'=>array(),
-//			'concept'=>array(),
-//			'place'=>array(),
-//			'event'=>array(),
-			'work'=>array('record_type','authors','subjects'),
-		);
+    $channels = Config::get('arc.SOLR_CHANNELS');
+    $solr_queries_def = Config::get('arc.SOLR_QUERIES_DEF');
+    $solr_facetes_def = Config::get('arc.SOLR_FACETES_DEF');
+    $empty_term_search_token = Config::get('arc.EMPTY_TERM_SEARCH_TOKEN');
+    $term_search_token = Config::get('arc.TERM_SEARCH_TOKEN');
 
 
-		$f_rectype = Input::has('record_type');
-		$f_authors = Input::has('authors');
-		$f_authors_with_ids = Input::has('authors_with_ids');
-		$f_subjects = Input::has('subjects');
-		$f_subjects_m = Input::has('subjects_manif');
-		$f_subjects_ids = Input::has('subjects_ids');
-		$f_pubplaces = Input::has('publication_places');
-		$f_pubplaces_ids = Input::has('publication_places_ids');
-		$f_pubplaces_with_ids = Input::has('publication_places_with_ids');
-		$f_pubtypes = Input::has('publication_types');
-		$f_publishers = Input::has('publishers');
-		$f_publishers_ids = Input::has('publishers_ids');
-		$f_publishers_with_ids = Input::has('publishers_with_ids');
-		$f_digtypes = Input::has('digital_item_types');
-		$f_langs = Input::has('languages');
+//     $channels = array(
+//     		'A'=>array(),
+//     		'R'=>array('result_query'=>true),
+//     		'W'=>array('filter'=>'object_type:auth-work', 'level'=>1),
+//     		'M'=>array('filter'=>'(object_type:auth-manifestation OR form_type:periodic)', 'level'=>2),
+//     );
 
-		$has_filter = $f_rectype || $f_authors || $f_authors_with_ids ||  $f_subjects || $f_subjects_m || $f_subjects_ids || $f_pubplaces || $f_pubplaces_ids || $f_pubplaces_with_ids || $f_pubtypes || $f_publishers || $f_publishers_ids || $f_publishers_with_ids || $f_digtypes || $f_langs;
+//#Version2
+//     $solr_facetes_def = array(
+//       'cat_l1'=> array(
+//         'solr_key'=>'a_categories_l1','channel'=>'R',
+//         'level_overights'=>array(
+//           0=>array('solr_key'=>'a_categories_l1','channel'=>'A' ),
+//           1=>array('solr_key'=>'a_categories_l1', 'result_filter'=>'(object_type:auth-work OR object_type:auth-manifestation OR object_type:periodic )'),
+//           2=>array('solr_key'=>'m_categories_l1'),
+//         ),
+//       ),
+//       'cat_l2'=> array(
+//         'solr_key'=>'a_categories_l2','channel'=>'R', 'display_on_facete' =>'cat_l1' ,
+//         'level_overights'=>array(
+//           0=>array('solr_key'=>'a_categories_l2','channel'=>'A' ),
+//           1=>array('solr_key'=>'a_categories_l2', 'result_filter'=>'(object_type:auth-work OR object_type:auth-manifestation OR object_type:periodic )'),
+//           2=>array('solr_key'=>'m_categories_l2'),
+//         ),
+//       ),
+//       'form_type'=> array('solr_key'=>'form_type', 'channel'=>'R', 'tr'=>true ,
+//         'level_overights'=>array( 0=>array('channel'=>'A'  )),
+//       ),
+//       'publisher'=> array('solr_key'=>'publishers', 'channel'=>'R' ,'set_level_to'=>2, 'result_filter'=>'(object_type:auth-manifestation OR form_type:periodic)', 'unset_input'=>array('form_type'=>'work'),
+//         'level_overights'=>array(0=>array('channel'=>'M', ))
+//       ),
+//       'pubplace'=> array('solr_key'=>'pubplaces', 'channel'=>'R' ,'set_level_to'=>2, 'result_filter'=>'(object_type:auth-manifestation OR form_type:periodic)', 'unset_input'=>array('form_type'=>'work'),
+//         'level_overights'=>array(0=>array('channel'=>'M', ))
+//       ),
+//       'author'=> array('solr_key'=>'authors', 'channel'=>'R' , 'result_filter'=>'(object_type:auth-work)', 'unset_input'=>array('form_type'=>'book'),
+//       'level_overights'=>array(0=>array('channel'=>'W', ))
+//       ),
+//       'owner'=> array('solr_key'=>'lawyer','channel'=>'R','set_level_to'=>2,
+//         'level_overights'=>array(0=>array('channel'=>'A', ))
+//       ), //'result_filter'=>'(object_type:auth-manifestation)'
+//     );
 
-		// add filters in case the page has been resubmitted by facet selection
-		$filters_w = array();
-
-		$addFilter = function ($solrkey, $value) use (&$filters_w) {
-			//$filters_w[] = sprintf('%s:"%s"',$solrkey,$value);
-			$f = sprintf('%s:"%s"', $solrkey, $value);;
-			$filters_w[$solrkey] = $f;
-		};
-
-		if (!$has_filter) {
-			$addFilter('-record_type', 'manifestation');
-		} else {
-			$record_type = null;
-			if ($f_pubplaces || $f_pubplaces_ids || $f_pubplaces_with_ids || $f_publishers || $f_publishers_ids || $f_publishers_with_ids || $f_subjects_ids || $f_pubtypes || $f_langs || $f_subjects_m) {
-				$record_type = 'manifestation';
-			} else {
-				$record_type = Input::get('record_type');
-			}
-
-			if (empty($record_type)) {
-				$record_type = 'work';
-			}
-
-			if (!empty($record_type)) {
-				$addFilter('record_type', $record_type);
-			}
-
-			if ($f_pubplaces) {
-				$addFilter('publication_places', Input::get('publication_places'));
-			}
-			if ($f_pubplaces_ids) {
-				$addFilter('publication_places_ids', Input::get('publication_places_ids'));
-			}
-			if ($f_pubplaces_with_ids) {
-				$addFilter('publication_places_with_ids', Input::get('publication_places_with_ids'));
-			}
-			if ($f_authors) {
-				$addFilter('authors', Input::get('authors'));
-			}
-			if ($f_authors_with_ids) {
-				$addFilter('authors_with_ids', Input::get('authors_with_ids'));
-			}
-			if ($f_subjects) {
-				$addFilter('subjects', Input::get('subjects'));
-			}
-			if ($f_subjects_m) {
-				$addFilter('subjects_manif', Input::get('subjects_manif'));
-			}
-			if ($f_subjects_ids) {
-				$addFilter('subjects_ids', Input::get('subjects_ids'));
-			}
-			if ($f_pubtypes) {
-				$addFilter('publication_types', Input::get('publication_types'));
-			}
-			if ($f_publishers) {
-				$addFilter('publishers', Input::get('publishers'));
-			}
-			if ($f_publishers_ids) {
-				$addFilter('publishers_ids', Input::get('publishers_ids'));
-			}
-			if ($f_publishers_with_ids) {
-				$addFilter('publishers_with_ids', Input::get('publishers_with_ids'));
-			}
-			if ($f_digtypes) {
-				$addFilter('digital_item_types', Input::get('digital_item_types'));
-			}
-			if ($f_langs) {
-				$addFilter('languages', Input::get('languages'));
-			}
-		}
-
-		//echo('<pre>');print_r($filters_w); echo('</pre>');
-
-		$solrSearch = new SolrSearch();
-		$data = $solrSearch->search($term, $filters_w, $start);
-
-		//SEARCH VAR
-		$data['term'] = $term;
-		$data['stype'] = $m;
-		$data['l'] = $l;
-		$data['y'] = $y;
-		$data['a'] = $a;
-		$data['p'] = $p;
-		$data['subj'] = $subj;
-		$data['hide_search_form'] = $hide_search_form;
-		$data['list_mode'] = $list_mode;
-		$data['f_label'] = $f_label;
-		$data['display_lang_select_flag'] = $display_lang_select_flag;
-
-		//RESULTS VAR
-		$data['relation_work_wholepart_map'] = Setting::get('relation_work_wholepart_map');
-
-		return $this->show($data);
-
-	}
+//      $solr_queries_def = array(
+//        'publishers_ids'=>array('solr_key'=>'publishers_id', 'filter_var'=>FILTER_VALIDATE_INT, 'label_prefix'=>'manifestations with publisher','set_level_to'=>2 ),
+//        'publication_places_ids'=>array('solr_key'=>'pubplaces_id', 'filter_var'=>FILTER_VALIDATE_INT, 'label_prefix'=>'manifestations issued under','set_level_to'=>2 ),
+// //        'subjects_ids'=>array('solr_key'=>'subjects_id', 'filter_var'=>FILTER_VALIDATE_INT, 'label_prefix'=>'manifestations with subject' ),
+//      );
 
 
+//#Version1
+    //'r_koko'=> array('solr_key'=>'form_type', 'channel'=>'R', 'tr'=>true,  ,'result_filter'=>'(form_type:issue)'),
+    //'((object_type:auth-manifestation OR form_type:periodic) OR result_filter'=>'(form_type:issue))';
+//
+//      $solr_facetes_def2 = array(
+//      //'record_type'=>array('solr_key'=>'record_type', 'channel'=>'A'),
+//
+////    'categories_l1'=> array('solr_key'=>'categories_l1','channel'=>'A'),
+//      'w1_categories_l1'=> array('solr_key'=>'w_categories_l1','channel'=>'A'),
+////      'w2_categories_l1'=> array('solr_key'=>'w_categories_l1','channel'=>'W'),
+//      'm1_categories_l1'=> array('solr_key'=>'m_categories_l1','channel'=>'A'),
+////      'm2_categories_l1'=> array('solr_key'=>'m_categories_l1','channel'=>'M'),
+//
+//
+//  //    'categories_l2'=> array('solr_key'=>'categories_l2','channel'=>'A' ),//'display_on_facete' =>'categories_l1'
+//      'w1_categories_l2'=> array('solr_key'=>'w_categories_l2','channel'=>'A' ),
+////      'w2_categories_l2'=> array('solr_key'=>'w_categories_l2','channel'=>'W' ),
+//      'm1_categories_l2'=> array('solr_key'=>'m_categories_l2','channel'=>'A' ),
+////      'm2_categories_l2'=> array('solr_key'=>'m_categories_l2','channel'=>'M' ),
+//
+//
+//      'form_type_all'=> array('solr_key'=>'form_type', 'channel'=>'A' , 'tr'=>true),
+//      'form_type'=> array('solr_key'=>'form_type', 'channel'=>'R', 'tr'=>true, ),
+//
+//      //'w_publisher'=> array('solr_key'=>'publishers', 'channel'=>'W', 'link'=>'m_publisher'), //'filter'=>'object_type:auth-manifestation OR form_type:periodic'
+//      'publisher'=> array('solr_key'=>'publishers', 'channel'=>'M'), //'filter'=>'object_type:auth-manifestation OR form_type:periodic'
+//      'i_publisher'=> array('solr_key'=>'i_publishers', 'channel'=>'M','display_on_form_type'=>array('issue')),
+//      //'w_pubplace'=> array('solr_key'=>'pubplaces', 'channel'=>'W', 'link'=>'m_pubplace'),
+//      'pubplace'=> array('solr_key'=>'pubplaces', 'channel'=>'M'),
+//      'i_pubplace'=> array('solr_key'=>'i_pubplaces', 'channel'=>'M','display_on_form_type'=>array('issue')),
+//
+//      //'r_author'=> array('solr_key'=>'authors', 'channel'=>'R'),
+//      'w_author'=> array('solr_key'=>'authors', 'channel'=>'W'),
+//      //'m_author'=> array('solr_key'=>'authors', 'channel'=>'M'),
+//      'owner'=> array('solr_key'=>'lawyer','channel'=>'A'),
+//
+////      'subject'=>array('solr_keys'=>array('w'=>'w_subjects','m'=>'m_subjects')),
+////      'authors'=>array('solr_keys'=>array('w'=>'w_authors','m'=>'m_authors')),
+////      'subjects_all'=> array('rt'=>'_all', 'q'=>'a'),
+////      'subjects'=> array('rt'=>'work' , 'q'=>'w'),
+////      'subjects_manif' => array('rt'=>'manifestation', 'q'=>'m', 'display_on_form_type'=>array('book')),
+////      'lawyer_with_ids'=> array('q'=>'m', 'display_on_form_type'=>array('book')),
+////      'w_authors'=> array('q'=>'a'), //WORK
+////      'm_authors'=> array('q'=>'a' , 'display_on_form_type'=>array('book')), //MANIF
+////      //'publication_types'=> array('rt'=>'manifestation', 'q'=>'m', 'display_on_form_type'=>array('book')),
+////      'w_publishers'=> array('q'=>'a', 'display_on_form_type'=>array('work')),
+////      'w_pubplaces'=> array( 'q'=>'a', 'display_on_form_type'=>array('work')),
+////      'm_publishers'=> array('q'=>'a', 'display_on_form_type'=>array('book')),
+////      'm_pubplaces'=> array( 'q'=>'a', 'display_on_form_type'=>array('book')),
+////      'languages'=> array('rt'=>'manifestation', 'q'=>'m', 'display_on_form_type'=>array('book')),
+//      //List mode facetes
+////      'publication_places_ids'=>array('q'=>'m', 'rt'=>'manifestation', 'list_mode'=>'list_id', 'label_prefix'=>'issued under'),
+////      'publishers_ids'=>array('q'=>'m','rt'=>'manifestation', 'list_mode'=>'list_id', 'label_prefix'=>'with publisher'),
+//      //'subjects_ids'=>array('q'=>'m', 'rt'=>'manifestation', 'list_mode'=>'list_id', 'label_prefix'=>'with subject'),
+//
+//    );
+
+    $display_mode = 'normal';
+    $list_id = null;
+    $list_label_prefix = null;
+
+    $filters=array();
+    foreach ($channels as $ch=>$ch_params){
+      $filter = new SolrSearchFilter();
+      $filters[$ch] = $filter;
+      if (isset($ch_params['filter'])){
+        $filter->addTokenString($ch_params['filter']);
+      }
+      //$channels[$ch]['_filter'] = $filter;
+    }
 
 
-	function search() {
+    $isFacetedQueryFlag = false;
+    $level = 0;
+    $result_token_sep = '';
+    $result_token = '';
+    $get_params = Input::all();
+    //print_r($get_params);
+
+    //LEVEL
+    foreach ($get_params as $k=>$v) {
+      $params = null;
+      if (isset($solr_queries_def[$k])) {
+        $params = $solr_queries_def[$k];
+      } elseif (isset($solr_facetes_def[$k])) {
+        $params = $solr_facetes_def[$k];
+      }
+      if (!empty($params)){
+        $ch_level = isset($params['set_level_to']) ? $params['set_level_to'] : 1;
+        if ($ch_level > $level) {
+          $level = $ch_level;
+        }
+      }
+
+    }
+
+
+    foreach ($solr_facetes_def as $k => $params){
+      if (isset($params['level_overights']) && isset($params['level_overights'][$level])){
+        $overights = $params['level_overights'][$level];
+        foreach ($overights as $pk=>$pv){
+          $params[$pk]=$pv;
+        }
+        $solr_facetes_def[$k]=$params;
+      }
+      //SOLR DEBUG
+      if (isset($params['solr_key'])){
+        PUtil::logRed($k . ' solr_key: ' . $params['solr_key'] . ' :: ' . $params['channel']);
+      };
+    }
+
+
+    $solr_query_flag = false;
+    foreach ($get_params as $k=>$v){
+      if (isset($solr_facetes_def[$k])) {
+        $isFacetedQueryFlag = true;
+        $params = $solr_facetes_def[$k];
+//        if (isset($params['level_overights']) && isset($params['level_overights'][$level])){
+//          $overights = $params['level_overights'][$level];
+//          foreach ($overights as $pk=>$pv){
+//            $params[$pk]=$pv;
+//          }
+//          $solr_facetes_def[$k]=$params;
+//        }
+
+
+        $ch_level = isset($params['set_level_to']) ? $params['set_level_to'] :1;
+        if (isset($params['result_filter']) && $ch_level >= $level){
+          $result_filter = $params['result_filter'];
+          $result_token .= $result_token_sep . $result_filter ;
+          $result_token_sep = ' OR ';
+        }
+//        if (isset($params['channel'])){
+//          $ch = $params['channel'];
+//          $channel = $channels[$ch];
+//          if (isset($channel['filter']) && isset($channel['level'])) {
+//            $ch_level =$channel['level'];
+//            //$filters['R']->addTokenString($channel['filter']);
+//            if ($ch_level > $level){
+//              $level = $ch_level;
+//              $result_token = $channel['filter'];
+//            }
+//          }
+//        }
+      } elseif (isset($solr_queries_def[$k])){
+        $solr_query_flag  = true;
+        $params = $solr_queries_def[$k];
+        $solr_key = $params['solr_key'];
+        if (isset($params['filter_var'])){
+          $v = filter_var($v,$params['filter_var']);
+        }
+        if (! empty($v)) {
+          $display_mode = 'list_id';
+          $list_id = $v;
+          $list_label_prefix = $params['label_prefix'];
+          foreach ($filters as $filter) {
+            //$filter->addTokenString($solr_key . ':[' . $v . ' TO '. $v . ']');
+            $filter->addTokenMatch($solr_key, $v);
+          }
+        }
+      }
+    }
+
+    $initQueryFlag = false;
+    if (!$solr_query_flag) {
+      if (!$emptyTermFlag && !$isFacetedQueryFlag) {
+        //TODO: veltiosi gia ta periodika
+        $filters['R']->addTokenString($term_search_token);
+      } elseif ($emptyTermFlag && !$isFacetedQueryFlag) {
+        $initQueryFlag = true;
+        $filters['R']->addTokenString($empty_term_search_token);
+      }
+    }
+
+    //SOLR DEBUG
+    PUtil::logYellow("RESULT LEVEL:" . $level);
+    PUtil::logYellow("RESULT TOKEN:" . $result_token);
+    if (! empty($result_token)){
+      $result_token = '(' . $result_token . ')';
+      $filters['R']->addTokenString($result_token);
+    }
+
+
+    foreach ($solr_facetes_def as $facete_name => $facete_params){
+      if (! isset($facete_params['solr_key'])){
+        trigger_error("solr_key missing from facate " . $facete_name);
+      }
+      $solr_key = $facete_params['solr_key'];
+      if (Input::has($facete_name)){
+        $value =Input::get($facete_name);
+        foreach ($channels as $ch=>$ch_params){
+          $filters[$ch]->addParam($solr_key,$value);
+        }
+      }
+    }
+
+    $solrSearch = new SolrSearch();
+    $data = $solrSearch->search2($channels, $solr_facetes_def, $filters, $term, $start);
+    $formTypes = $data['formTypes'];
+
+    $list_label = null;
+    if ( $display_mode == 'list_id' && !empty($list_id)){
+      //$list_label = trChoise($rt.'s',$data['total_cnt']).' '.tr($list_label_prefix) . ' <b>"' . PDao::getItemLabel($list_id).'"</b>';
+      $list_label =  trChoise($list_label_prefix, $data['total_cnt'])  .'  <b>' . PDao::getItemLabel($list_id) .'</b>';
+    }
+
+
+    //PUtil::logRed("TERM2: " . $term);
+    //SEARCH VAR
+    $data['term'] = $term;
+    $data['stype'] = $m;
+    $data['l'] = $l;
+    $data['y'] = $y;
+    $data['a'] = $a;
+    $data['p'] = $p;
+
+    $data['page']  = $page;
+    $data['limit']  = $limit;
+
+
+    $blade_solr_search = Config::get('arc.BLADE_SOLR_SEARCH');
+    $blade_solr_facete_conf = Config::get('arc.BLADE_SOLR_FACETE');
+    $blade_solr_facete_sr_conf = Config::get('arc.BLADE_SOLR_FACETE_SR');
+
+    $view = View::make('public.'.$blade_solr_search);
+    $facete_names = array();
+    $facete_names_sr = array(); #Sreen-Reader
+    $facete_rs = $data['facetes'];
+
+    $facete_names_top = array();
+
+    foreach ($facete_rs as $facete_rs_key=>$facete) {
+      $facete_params = $facete['params'];
+      $facete_name_naked[] = $facete_rs_key;
+
+//      if (isset($facete_params['display_on_init'])) {
+//        $displayOnInitFlag = $facete_params['display_on_init'];
+//        if ($displayOnInitFlag && !$initQueryFlag) {
+//          PUtil::logRed("INIT##1");
+//          continue;
+//        }
+//        if (!$displayOnInitFlag && $initQueryFlag) {
+//          PUtil::logRed("INIT##2");
+//          continue;
+//        }
+//      }
+
+      if (isset($facete_params['display_on_facete']) && ! Input::has($facete_params['display_on_facete'])  && ! Input::has($facete_rs_key) ){
+          continue;
+      }
+
+      $blade_solr_facete = Config::get('arc.BLADE_SOLR_FACETE_FOR_' . $facete_rs_key, $blade_solr_facete_conf);
+      $blade_solr_facete_sr = Config::get('arc.BLADE_SOLR_FACETE_FOR_' . $facete_rs_key, $blade_solr_facete_sr_conf);
+
+      $facete_lines = $facete['results'];
+      $facete_name = $facete['name'];
+      //PUtil::logGreen("NAME: " . $facete_name . ' KEY: ' . $facete_rs_key);
+
+      $facete_link =isset($facete_params['link']) ? $facete_params['link'] : $facete_rs_key;
+
+      $facete_name_blade = $facete_name . '_facete';
+      $facete_name_blade_sr = $facete_name . '_facete_sr'; #Sreen-Reader
+
+      //$facete_lines= (isset($data[$facete_name])) ?$data[$facete_name]: array();
+      if (empty($facete_params['top_position'])){
+      	$facete_names[] = $facete_name_blade;
+      }else{
+      	$facete_names_top[] = $facete_name_blade;
+      }
+      //$facete_names[] = $facete_name_blade;
+      $facete_names_sr[] = $facete_name_blade_sr; #Sreen-Reader
+      $facete_data = array(
+        'facete_name' => $facete_rs_key,
+        'facete_title' => $facete_rs_key, //$facete_name
+        //'facete_title' => $facete_rs_key, //$facete_name
+        'facete_link'=>$facete_link,
+        'facete_lines' => $facete_lines,
+        'facete_params'  => $facete_params,
+        'moreFacetsNum' => Config::get('arc.MORE_FACETS_NUM', 5),
+      );
+      //Log::info(print_r($facete_data,true));
+      $view->nest($facete_name_blade, 'public.'.$blade_solr_facete, $facete_data);
+      $view->nest($facete_name_blade_sr, 'public.'.$blade_solr_facete_sr, $facete_data); #Sreen-Reader
+    }
+
+    $data['facetes']  = $facete_names;
+    $data['facetes_top']  = $facete_names_top;
+    $data['facetes_sr']  = $facete_names_sr; #Sreen-Reader
+    $data['facetes_names']  = $facete_name_naked;
+    $data['hide_search_form'] = $hide_search_form;
+    $data['list_label'] = $list_label;
+    $data['display_mode'] = $display_mode;
+    $data['list_id'] = $list_id;
+    $data['isFacetedQueryFlag'] = $isFacetedQueryFlag;
+
+   // return $view->with($data);
+
+//		$html = $view->with($data)->render();
+//		return $html;
+
+    PUtil::logRed('#########################################################################################');
+    PUtil::logRed('#########################################################################################');
+    $fview = View::make('layouts.drupal');
+    $fview ->content = $view->with($data);
+    return $fview;
+
+  }
+
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+	public function search() {
 
 		Log::info("#SearchController@search");
 
@@ -234,6 +456,7 @@ class SearchController extends BaseController
 		if ($m == 'a') {//ADVANCE SEARCH
 			$params['method'] = 'adv';
 			$params['ss'] = $sss;
+			$params['ot'] = $ot;
 			$rep = SearchLib2::search_item_simple($params);
 
 // 			$search_string = $params['ss'];
@@ -246,6 +469,8 @@ class SearchController extends BaseController
 		} else {
 			$params['method'] = 'simple';
 			$params['ss'] = $ss;
+			$params['ot'] = $ot;
+
 			$rep = SearchLib2::search_item_simple($params);
 			//$rep = SearchLib2::search_item_simple($ss,$o,$r,$k,$y1,$y2,$sl,$ot);
 		}
@@ -296,6 +521,22 @@ class SearchController extends BaseController
 		return $this->show($data);
 
 	}
+
+
+
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
 
 
 }

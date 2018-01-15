@@ -70,11 +70,18 @@ Route::post('/prepo/update_folder_thumbs', array('uses'=>'AdminController@update
 
 Route::get('/archive/recent', array('before'=>'argv', 'as' => 'admin.recent', 'uses' => 'AdminController@parchive_recent'));
 Route::get('/prepo/node_stats', array('before'=>'argv', 'as' => 'admin.node_stats', 'uses' => 'AdminController@show'));
+Route::get('/prepo/user_items', array('before'=>'argv', 'as' => 'admin.user_items', 'uses' => 'ReportControler@user_items'));
+
+
+Route::get('/prepo/all_users_items', array('before'=>'argv', 'as' => 'admin.all_user_items', 'uses' => 'ReportControler@all_user_items'));
+Route::post('/prepo/all_users_items', array('before'=>'argv', 'as' => 'admin.all_user_items', 'uses' => 'ReportControler@all_user_items'));
+
 
 //EDIT ITEM STEP 1
 Route::get('/prepo/edit_step1',  array('as' => 'admin.edit_item_step1', 'uses' => 'EditItemController@step1'));
 Route::post('/prepo/edit_step1', array('as' => 'admin.edit_item_step1', 'uses' => 'EditItemController@step1'));
 Route::get('/prepo/edit_step2',  array('as' => 'admin.edit_item_step2', 'uses' => 'EditItemController@step2'));
+Route::post('/prepo/edit_step2',  array('as' => 'admin.edit_item_step2', 'uses' => 'EditItemController@step2'));
 
 Route::get('/prepo/edit_step3', array( 'uses' => 'EditItemController@step3'));
 Route::post('/prepo/edit_step3', array( 'uses' => 'EditItemController@step3'));
@@ -164,6 +171,9 @@ Route::get('/prepo/subjects/relation', array('before'=>'argv', 'as' => 'admin.su
 Route::post('/prepo/subjects/relation', array('before'=>'argv', 'as' => 'admin.subject_relation', 'uses' => 'AdminController@show'));
 
 Route::get('/prepo/submits', array('before'=>'argv', 'as' => 'admin.submits', 'uses' => 'AdminController@show'));
+Route::get('/prepo/submitsactive', array('before'=>'argv', 'as' => 'admin.submitsactive', 'uses' => 'AdminController@show'));
+Route::get('/prepo/submitserror', array('before'=>'argv', 'as' => 'admin.submitserror', 'uses' => 'AdminController@show'));
+Route::get('/prepo/finish_submit', array('before'=>'argv','uses' => 'AdminController@parchive_finish_submit'));
 Route::get('/prepo/delete_submit', array('before'=>'argv','uses' => 'AdminController@parchive_delete_submit'));
 Route::get('/prepo/merge_subjects', array('before'=>'argv', 'as' => 'admin.merge_subject','uses' => 'AdminController@show'));
 Route::post('/prepo/merge_subjects', array('before'=>'argv', 'as' => 'admin.merge_subject','uses' => 'AdminController@parchive_merge_subjects'));
@@ -190,7 +200,11 @@ Route::get('/prepo/ws/search-place', array('uses' => 'AdminController@ws_search_
 Route::get('/prepo/ws/search-person', array('uses' => 'AdminController@ws_search_person'));
 Route::get('/prepo/ws/search-family', array('uses' => 'AdminController@ws_search_family'));
 Route::get('/prepo/ws/search-organization', array('uses' => 'AdminController@ws_search_organization'));
+Route::get('/prepo/ws/search-periodic', array('uses' => 'AdminController@ws_search_periodic'));
 
+Route::get('/prepo/ws/search-periodic-title', array('uses' => 'AdminController@ws_search_periodic_title'));
+
+Route::get('/prepo/ws/search-issue', array('uses' => 'AdminController@ws_search_issue'));
 Route::get('/prepo/ws/search-digital-item', array('uses' => 'AdminController@ws_search_digital_item'));
 
 Route::get('/prepo/ws/search-lemma-category', array('uses' => 'AdminController@ws_search_lemma_category'));
@@ -209,6 +223,8 @@ Route::get('/prepo/ws/search-subject-object', array('uses' => 'AdminController@w
 Route::get('/prepo/ws/search-subject-event', array('uses' => 'AdminController@ws_search_subject_event'));
 Route::get('/prepo/ws/search-subject-form', array('uses' => 'AdminController@ws_search_subject_form'));
 Route::get('/prepo/ws/search-subject-general', array('uses' => 'AdminController@ws_search_subject_general'));
+Route::get('/prepo/ws/search-category-concept', array('uses' => 'AdminController@ws_search_category_concept'));
+Route::get('/prepo/ws/search-main-category-concept', array('uses' => 'AdminController@ws_search_main_category_concept'));
 
 Route::get('/prepo/ws/search-type-event', array('uses' => 'AdminController@ws_search_type_event'));
 
@@ -228,6 +244,9 @@ Route::get('/prepo/graph-dump', array('uses' => 'GraphController@dump'));
 Route::get('/prepo/graphReset', array('uses' => 'GraphController@graphReset'));
 Route::get('/prepo/reset-graph', array('uses' => 'GraphController@graphResetGUI'));
 Route::post('/prepo/reset-graph', array('uses' => 'GraphController@graphResetGUI'));
+Route::get('/prepo/reset-fts', array('uses' => 'GraphController@resetFTS'));
+Route::post('/prepo/reset-fts', array('uses' => 'GraphController@resetFTS'));
+
 
 Route::get('/prepo/reset-lock', array('before'=>'argv', 'as' => 'admin.lock_transaction_reset', 'uses' => 'AdminController@lockTransactionReset'));
 Route::post('/prepo/reset-lock', array('before'=>'argv', 'as' => 'admin.lock_transaction_reset', 'uses' => 'AdminController@lockTransactionReset'));
@@ -259,18 +278,19 @@ Route::get('/prepo/solr_search_staff', array('before'=>'argv', 'as' => 'admin.so
 Route::get('/prepo/solr_suggest_staff', array('before'=>'argv', 'as' => 'admin.solr_suggest_staff', 'uses' => 'ArchiveController@solr_suggest_staff'));
 
 // Route::get('/prepo/search_solr', array('before'=>'argv', 'as' => 'public.search_solr', 'uses' => 'AdminController@show'));
-Route::get('/prepo/search_solr', array('before'=>'argv', 'as' => 'public.search_solr', 'uses' => 'SearchController@solr_search'));
-
 
 if (Config::get('arc.SOLR_SEARCH_AS_DEFAULT',0)>0) {
-	Route::get('/archive/search', array('before' => 'argv', 'as' => 'public.search_solr', 'uses' => 'SearchController@solr_search'));
-	Route::get('/archive/search_s', array('uses' => 'SearchController@search'));
+	Route::get('/archive/search', array('before' => 'argv', 'uses' => 'SearchController@solr2_search'));
+	Route::get('/archive/search2', array('uses' => 'SearchController@search'));
 } else {
-	Route::get('/archive/search_s', array('before'=>'argv', 'as' => 'public.search_solr', 'uses' => 'SearchController@solr_search'));
 	Route::get('/archive/search', array('uses' => 'SearchController@search'));
+	Route::get('/archive/search2', array('before' => 'argv', 'uses' => 'SearchController@solr2_search'));
 }
+// Route::get('/archive/search', array('before' => 'argv', 'uses' => 'SearchController@solr2_search'));
 
-Route::get('/prepo/lock_test', array('before'=>'argv', 'as' => 'admin.lock_test', 'uses' => 'AdminController@show'));
+
+//Route::get('/prepo/lock_test', array('before'=>'argv', 'as' => 'admin.lock_test', 'uses' => 'AdminController@show'));
+Route::get('/prepo/lock_test', array('before'=>'argv', 'uses' => 'AdminController@lockTest'));
 
 
 Route::get('/prepo/report1', array('uses' => 'ReportControler@report1'));
@@ -279,6 +299,23 @@ Route::get('/prepo/action1', array('before'=>'argv', 'as' => 'actions.action1', 
 Route::get('/prepo/action2', array('before'=>'argv', 'as' => 'actions.action2', 'uses' => 'ActionControler@action2'));
 Route::post('/prepo/action2', array('before'=>'argv', 'as' => 'actions.action2', 'uses' => 'ActionControler@action2'));
 
+Route::get('/prepo/download-log', array('before'=>'argv', 'as' => 'reports.download_log', 'uses' => 'ReportControler@downloading_logs'));
+Route::post('/prepo/download-log', array('before'=>'argv', 'as' => 'reports.download_log', 'uses' => 'ReportControler@downloading_logs'));
+
+Route::get('/prepo/field_help', array( 'uses' => 'AdminController@parchive_field_help'));
+
+Route::get('/prepo/reset-log', array('before'=>'argv', 'as' => 'reports.reset_log', 'uses' => 'ReportControler@reset_graph_logs'));
+Route::post('/prepo/reset-log', array('before'=>'argv', 'as' => 'reports.reset_log', 'uses' => 'ReportControler@reset_graph_logs'));
+
+Route::get('/prepo/ex1_view', array('before'=>'argv', 'uses' => 'ExampleController@ex1'));
+
+
+//SCORP custom urls
+Route::get('/prepo/researchers-report', array('before'=>'argv', 'as' => 'reports.researchers_report', 'uses' => 'ScorpControler@researchers_report'));
+
+//DRYLL custom urls
+Route::get('/prepo/find-lawyer', array('uses' => 'DrylControler@parchive_find_lawyer'));
+Route::get('/prepo/find-conference', array('uses' => 'DrylControler@parchive_find_conference'));
 
 
 

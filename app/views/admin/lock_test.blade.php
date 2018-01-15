@@ -1,5 +1,6 @@
 @section('content')
 <h1>lock test</h1>
+<pre>
 <?php
 
 $pid = getmypid();
@@ -18,23 +19,36 @@ function insert_msg($msg){
 }
 
 
-Log::info($pid . ": #LOCK");
+function info($msg){
+
+	//$now = date(DATE_RFC2822);
+	$now = date("Y-m-d H:i:s");
+	list($usec, $sec) = explode(" ", microtime());
+	$t1 = (int) ((float) ($usec * 1000));
+	echo $now . ' ' . $t1 . ' | ' . $msg;
+	echo "\n";
+	//Log::info('|'. $t1 . ' | ' . $msg);
+    PUtil::logGreen($msg);
+}
+
+info($pid . ": LOCK");
 $rlock->lock();
 //$rlock->lock();
-Log::info($pid . ": #LOCK ACK");
-Log::info($pid . ": #WORK START");
-insert_msg($pid . ': WORK START: ' . $st);
+info($pid . ": LOCK ACK");
+info($pid . ": WORK START");
+insert_msg($pid . ': LOCK TEST: WORK START: ' . $st);
 sleep($st);
-insert_msg($pid . ': WORK END');
-Log::info($pid . ": #WORK END");
-Log::info($pid . ": #LOCK RELEASE" );
+insert_msg($pid . ': LOCK TEST: WORK END');
+info($pid . ": WORK END");
+info($pid . ": LOCK RELEASE" );
 $rlock->release();
 //$rlock->release();
-Log::info($pid . ": #LOCK RELEASE  ACK" );
+info($pid . ": LOCK RELEASE  ACK" );
 
 
 
 
 
 ?>
+</pre>
 @stop

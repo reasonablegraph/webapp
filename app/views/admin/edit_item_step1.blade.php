@@ -2,6 +2,15 @@
 <?php auth_check_mentainer(); ?>
 
 <?php
+	$app = App::make('arc');
+	if ($app->arcfe == 'testrg') {
+		//echo('<script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"/>');
+		//echo('<script src="https://code.jquery.com/jquery-3.1.1.min.js"/>');
+		//echo('<script src="https://code.jquery.com/jquery-2.2.4.min.js"/>');
+		echo('<script  src="https://code.jquery.com/jquery-1.12.4.min.js"  integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>');
+	}
+?>
+<?php
 
 if (Config::get('arc.LOAD_JS')) {
 	// laravel jquery
@@ -59,11 +68,14 @@ drupal_add_js('/_assets/js/form/step1_form_gen.js?v='.$js_version, 'external');
 	<div id="result"></div>
 <?php
 
+
+
 $idata = $_REQUEST['idata'];
 $item_id = $_REQUEST['item_id'];
 $submit_id = $_REQUEST['submit_id'];
 $edoc = $_REQUEST['edoc'];
 $cd = $_REQUEST['cd'];
+$type = $_REQUEST['type'];
 $item_collection = $_REQUEST['item_collection'];
 $wfdata = $_REQUEST['wfdata'];
 
@@ -85,6 +97,7 @@ $thumb = $_REQUEST['thumb'];
 //@DOC: RELATIONS  change Infernece at load step1
 $idata = PUtil::changeRelation($idata,1);
 
+$print_copy_cataloging = variable_get('arc_copy_cataloging', 0);
 
 ?>
 
@@ -112,32 +125,9 @@ if (! empty($cd)) {
 	echo ("<br/>");
 }
 ?>
-<!-- <input type="submit" name="save" value="save"/> -->
-	<!-- <input  type="submit" name="next" value="next"/> -->
-	<!-- <input type="submit" style="float:right" name="save_finalize" value="save_finalize"/> -->
-	<button type="submit" name="save" value="save"><?php echo tr('save'); ?></button>
-	<button type="submit" name="next" value="next" style="margin-left: 20px"><?php echo tr('next');  ?></button>
-	<button type="submit" name="save_finalize" value="save_finalize" style="float: right"><?php echo tr('save_finalize'); ?></button>
 
+@include('includes.step1-links')
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-
-<?php
-$print_copy_cataloging = variable_get('arc_copy_cataloging', 0);
-if ($print_copy_cataloging) :
-	?>
-<!--
-<span style="margin-left:200px">
-<button id="biblionet1" type="button" class="inline_button">biblionet</button>
-</span>
- -->
-	<span style="margin-left: 200px">
-		<button id="z3950" type="button" class="inline_button">z3950</button>
-	</span>
-
-<?php endif;?>
-
-<br />
 <?php
 
 printf('<input type="hidden"  name="submit_id" value="%s" />' . "\n", $submit_id);
@@ -157,8 +147,11 @@ if (! empty($artifact_ref_item_id)) {
 
 $dbh = dbconnect();
 
-if (! empty($stype) && $stype = "sites") {
+if (!empty($type)){
+	$idata->setValueSK("ea:form-type:", $type);
+}
 
+if (! empty($stype) && $stype = "sites") {
 	$key = "ea:website:url";
 	$value = $idata->getValueSK($key);
 	if (empty($value)) {
@@ -336,9 +329,9 @@ $fobj_types = array('values' => $map,'default' => $defVal );
 // Log::info("DEF_VAL:" . $defVal);
 // Log::info("OBJ_TYPES:". print_r($fobj_types,true));
 
-echo ('<hr/>');
+// echo ('<hr/>');
 echo ('<div id="step1f" class="jsform"></div>');
-echo ('<hr/>');
+// echo ('<hr/>');
 
 echo ("\n<script>\n");
 $default_form = get_get('f', null);
@@ -399,26 +392,30 @@ echo ("\n</script>\n");
 
 ?>
 
-<div>
+@include('includes.step1-links')
+
+<!-- DEPRECATED -->
+<!-- <div> -->
 		<!-- <input type="submit" name="save" value="save"/> -->
 		<!-- <input style="margin-left:20px" type="submit" name="next" value="next"/> -->
 		<!-- <input style="float:right" type="submit" name="save finalize" value="save_finalize"/> -->
-		<button type="submit" name="save" value="save"><?php echo tr('save'); ?></button>
-		<button type="submit" name="next" value="next" style="margin-left: 20px"><?php echo tr('next');  ?></button>
-		<button type="submit" name="save_finalize" value="save_finalize" style="float: right"><?php echo tr('save_finalize'); ?></button>
-	</div>
-	<div>
+		<!-- <button type="submit" name="save" value="save"><?php //echo tr('save'); ?></button> -->
+		<!-- <button type="submit" name="next" value="next" style="margin-left: 20px"><?php //echo tr('next');  ?></button>-->
+		<!-- <button type="submit" id="btn_save_fin" name="save_finalize" value="save_finalize" style="float: right"><?php //echo tr('save_finalize'); ?></button> -->
+<!-- </div> -->
+<!-- 	<div> -->
 <?php
-printf('<input style="float:right" id="thumb1" type="text" name="thumb" value="%s" size="86"/>', htmlspecialchars($thumb));
-printf('<button style="float:right" id="b_tree">tree</button>');
-echo ("\n");
+// printf('<input style="float:right" id="thumb1" type="text" name="thumb" value="%s" size="86"/>', htmlspecialchars($thumb));
+// printf('<button style="float:right" id="b_tree">tree</button>');
+// echo ("\n");
 // printf('<input id="libgenxml" type="hidden" name="libgenxml" value="%s" size="46"/><br/>',htmlspecialchars($libgenxml));
-echo ("\n");
+// echo ("\n");
 ?>
-</div>
+<!-- </div> -->
 
 
 <?php echo"</form>"?>
+
 
 <div id="xmldata"></div>
 

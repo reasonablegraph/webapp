@@ -46,7 +46,7 @@ class PrepareService {
 			return $_REQUEST[$SQL];
 		}
 
-		Log::info("@@@@@ NEW prepare SQL: " . $SQL);
+		//Log::info("@@@@@ NEW prepare SQL: " . $SQL);
 		$st = $dbh->prepare($SQL);
 		$_REQUEST[$SQL] = $st;
 		return $st;

@@ -13,5 +13,6 @@ class UrlPrefixes {
 	public static $bitstreams = '/prepo/bitstreams?i=';
 	public static $spool  = '/prepo/spool';
 	public static $search_solr = '/archive/search';
+	public static $search_solr2 = '/archive/search2';
+	public static $prepo_menu= '/prepo/menu';
 };
-?>

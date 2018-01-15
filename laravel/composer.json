@@ -12,7 +12,7 @@
 		"pear/console_table": "~1.2",
 		"pear/file_marc":"1.1.2",
 		"philf/setting": "dev-master",
-		"solarium/solarium": "^3.5"
+		"solarium/solarium": "^3.8.1"
 	},
 	"autoload": {
 		"classmap": [

@@ -194,5 +194,3 @@ class GRuleOpacPrepareActor extends AbstractGruleProcessVertice implements GRule
 }
 
 
-
-?>

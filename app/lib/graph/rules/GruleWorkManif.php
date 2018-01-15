@@ -47,5 +47,3 @@ class GRuleWorkManif  extends AbstractBaseRule implements  GRule {
 	}
 
 }
-
-?>

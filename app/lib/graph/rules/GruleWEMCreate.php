@@ -40,5 +40,4 @@ class GRuleWEMCreate  extends AbstractGruleProcessVertice implements GRule {
 
 }
 
-?>
 

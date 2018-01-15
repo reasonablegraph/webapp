@@ -1,5 +1,8 @@
 <?php
 
+/**
+ * @runTestsInSeparateProcesses
+ */
 class ExampleTest extends TestCase {
 
 	/**

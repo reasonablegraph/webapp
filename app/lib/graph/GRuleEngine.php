@@ -36,6 +36,7 @@ interface  GRuleContext {
 	public function clearCommands();
 	public function hasCommands();
 	public function executeCommands();
+	public function executePostRules();
 
 
 	public function getDebugFlag();
@@ -469,7 +470,7 @@ class GRuleContextO implements GRuleContext, GRuleContextR {
 		foreach($commands as $key=>$cmd){
 			$this->addDebugMessage("execute command: $key");
 			if ($this->debugFlag) {
-				Log::info("@@@@execute command: $key");
+				Log::info("execute command: $key");
 			}
 
 			try {
@@ -477,7 +478,7 @@ class GRuleContextO implements GRuleContext, GRuleContextR {
 				//$t1 = microtime(true);
 				$cmd->execute($this);
 				//$t2 = microtime(true);
-				//Log::info("@@@@COMMAND FINISH: $key :: " . ($t2 - $t1));
+				//Putil::logRed("@@@@COMMAND FINISH: $key :: " . ($t2 - $t1));
 
 			} catch (Exception $e) {
 
@@ -628,7 +629,12 @@ class GRuleEngine {
 	 * @return GRuleContext
 	 */
 	public function execute($init_context_params = array()){
+		$GLOBALS['force_language'] = Config::get('app.locale', 'en');
+		Log::info('App default locale: ' . Config::get('app.locale'));
 		//Log::info("EXECUTE RULEENGINE");
+
+		//$sleep_interval=6; PUtil::logRed("SLEEP " . $sleep_interval); sleep($sleep_interval);
+
 		$rc =0;
 		//$g->removeInferredEdges();
 		//Log::info("MEMORY:1:" . memory_get_usage(TRUE) . '  :  ' . memory_get_usage() . '   :  ' . memory_get_peak_usage(). '   :  ' . memory_get_peak_usage(true));
@@ -648,14 +654,48 @@ class GRuleEngine {
 				}
 				$this->next_rules[$phase][]=$rule;
 		 }
-		//$context->executePostRules();
 
-		$DUMP_GRAPHVIZ = false;
+// 		$DUMP_GRAPHVIZ = false;
+		$DUMP_GRAPHVIZ = Config::get('arc.DUMP_GRAPHVIZ',0);
+
+		$dump_dir = null;
     $DUMP_neighbourhood = false;
 		if ($DUMP_GRAPHVIZ) {
-			Log::info("********** DUMP GRAPHIZ RULE ENGINE**********");
-			Log::info("rm -rf /tmp/rules");
-			$tmp = exec('rm -rf /tmp/rules');
+			PUtil::logRed("********** DUMP GRAPHIZ RULE ENGINE**********");
+			if (!file_exists('/tmp/rules/')){mkdir('/tmp/rules/');}
+			//Log::info("rm -rf /tmp/rules");
+			//$tmp = exec('rm -rf /tmp/rules');
+			$tmp = microtime();
+			$tmp_arr = explode(" ", $tmp);
+			$epoch = $tmp_arr[1] .'_' . $tmp_arr[0];
+			$now = date("Y-m-d H:i:s T");
+			$info = '';
+			$info .= $now; $info .= "\n";
+			$info .= $epoch; $info .= "\n";
+			$info .= "------------------------------------\n";
+			$info .= "SERVER:\n";
+			$info .= print_r($_SERVER,true);
+			$info .= "------------------------------------\n";
+			$info .= "GET:\n";
+			$info .= print_r($_GET,true);
+			$info .= "------------------------------------\n";
+			$info .= "POST:\n";
+			$info .= print_r($_POST,true);
+			$info .= "------------------------------------\n\n";
+
+			if (file_exists('/tmp/rules/info.txt')){
+				//$dump_dir="/tmp/rules/". $epoch ."/";
+				$dump_dir="/tmp/rules/old_". $epoch ."/";
+				mkdir($dump_dir);
+				exec("chmod 777 " . $dump_dir);
+				exec("mv /tmp/rules/*.txt " . $dump_dir);
+				exec("mv /tmp/rules/*.dot " . $dump_dir);
+				exec("mv /tmp/rules/*.png " . $dump_dir);
+				file_put_contents($dump_dir . 'info.txt', $dump_dir ."\n\n" , FILE_APPEND );
+				Log::info("MOVE dump-ruples to " . $dump_dir);
+			}
+			$dump_dir="/tmp/rules/";
+			file_put_contents('/tmp/rules/info.txt',$info);
 		}
 
 		ksort($this->next_rules);
@@ -667,55 +707,59 @@ class GRuleEngine {
 				//$ruleName = $rule[0];
 				//Log::info("execute rule: " . $ruleName);
 				//$args = isset($rule[1])?$rule[1] : array();
+
 					//$t1 = microtime(true);
+
 				//print_r($rule);
 				//echo "$rule[0]|";
 				$this->execute_rule($context, $rule);
 				if ($DUMP_GRAPHVIZ) {
-					if (!file_exists('/tmp/rules/')){
-						mkdir('/tmp/rules/');
-					}
+					//if (!file_exists('/tmp/rules/')){mkdir('/tmp/rules/');}
 					$ruleName = $rule[1];
 					$rct = $rc < 10 ? '0' . $rc : $rc;
 					//$glabel = 'phase: ' . $kt . ' ord: ' . $rct . ' RULE: ' . $ruleName . ' (after)';
 					$glabel = 'ord: ' . $rct . ' phase: ' . $kt . ' RULE: ' . $ruleName . ' (after)';
-					$dot_file = '/tmp/rules/rule-' . $kt . '-' . $rct . '_after.dot';
-					$dump_file = '/tmp/rules/rule-' . $kt . '-' . $rct . '_after.txt';
+					$dot_file = $dump_dir . 'rule-' . $kt . '-' . $rct . '_after.dot';
+					$dump_file = $dump_dir . 'rule-' . $kt . '-' . $rct . '_after.txt';
 					GGraphUtil::dumpDOT($this->graph,array('file'=>$dot_file,'label'=>$glabel,'inferredFlag'=>true,'neighbourhoodFlag'=>$DUMP_neighbourhood,'graph_dump_file'=>$dump_file));
-					Log::info("@@:: EXECUTE RULE> PHASE: " . $kt . ' RC: ' . $rct . ' NAME: ' . $ruleName) ;
+					//Log::info("@@:: DUMP_GRAPHVIZ EXECUTE RULE> PHASE: " . $kt . ' RC: ' . $rct . ' NAME: ' . $ruleName) ;
 				}
 
 				//$t2 = microtime(true);
-				//Log::info("@@::time RULE FINISH: " . ($t2 - $t1) . '  1:  ' . $rule[0] . '  2: ' . $rule[1]);
+				//Putil::logRed("@@::time RULE FINISH: " . ($t2 - $t1) . '  1:  ' . $rule[0] . '  2: ' . $rule[1]);
 			}
 			$context->executePostRules();
-			if ($DUMP_GRAPHVIZ) {
-				$dot_file = '/tmp/rules/phase-' . $kt . '_after.dot';
-				$glabel='PHASE ' . $kt . ' AFTER';
-				$dump_file = '/tmp/rules/phase-' . $kt . '_after.txt';
-				GGraphUtil::dumpDOT($this->graph,array('file'=>$dot_file,'label'=>$glabel,'inferredFlag'=>true,'neighbourhoodFlag'=>true,'graph_dump_file'=>$dump_file));
-			}
+//			if ($DUMP_GRAPHVIZ) {
+//				$dot_file = $dump_dir . 'phase-' . $kt . '_after.dot';
+//				$glabel='PHASE ' . $kt . ' AFTER';
+//				$dump_file = $dump_dir . 'phase-' . $kt . '_after.txt';
+//				GGraphUtil::dumpDOT($this->graph,array('file'=>$dot_file,'label'=>$glabel,'inferredFlag'=>true,'neighbourhoodFlag'=>true,'graph_dump_file'=>$dump_file));
+//			}
 		}
 		$context->executePostRules();
 		if ($DUMP_GRAPHVIZ) {
-			$dot_file = '/tmp/rules/post_rules_after.dot';
+			$dot_file = $dump_dir . 'x1_post_rules_after.dot';
 			$glabel='POST RULES AFTER';
-			$dump_file = '/tmp/rules/post_rules_after.txt';
+			$dump_file = $dump_dir . 'x1_post_rules_after.txt';
 			GGraphUtil::dumpDOT($this->graph,array('file'=>$dot_file,'label'=>$glabel,'inferredFlag'=>true,'neighbourhoodFlag'=>$DUMP_neighbourhood,'graph_dump_file'=>$dump_file));
 		}
+
 
 		//$t1 = microtime(true);
 		$context->executeCommands();
 		if ($DUMP_GRAPHVIZ) {
-			$dot_file = '/tmp/rules/commands_after.dot';
+
+			$dot_file = $dump_dir . 'x2_commands_after.dot';
 			$glabel='COMMANDS AFTER';
-			$dump_file = '/tmp/rules/commands_after.txt';
+			$dump_file = $dump_dir . 'x2_commands_after.txt';
 			GGraphUtil::dumpDOT($this->graph,array('file'=>$dot_file,'label'=>$glabel,'inferredFlag'=>true,'neighbourhoodFlag'=>$DUMP_neighbourhood,'graph_dump_file'=>$dump_file));
 		}
 
+
+		unset($GLOBALS['force_language']);
 		//$t2 = microtime(true);
-	//	Log::info("@@::time COMMANDS FINISH: " . ($t2 - $t1));
-		//Log::info("@@::mem " . memory_get_usage(TRUE) . '  :  ' . memory_get_usage() . '   :  ' . memory_get_peak_usage(). '   :  ' . memory_get_peak_usage(true));
+		//Putil::logRed("@@::time COMMANDS FINISH: " . ($t2 - $t1));
+		//Putil::logRed("@@::mem " . memory_get_usage(TRUE) . '  :  ' . memory_get_usage() . '   :  ' . memory_get_peak_usage(). '   :  ' . memory_get_peak_usage(true));
 		return $context;
 	}
 
@@ -798,7 +842,7 @@ class GRuleEngineLock {
 		}
 	}
 
-	public function lock() {
+	public function lock($message=null) {
 		if (!$this->enabled){ return;}
 		if ($this->locked){
 			$this->insert_log($this->pid . ': ' . 'SKIP LOCK ALLREDY LOCKED');
@@ -808,21 +852,22 @@ class GRuleEngineLock {
 		$sleep_time = 2;
 		$exist_max = 8; //* sleep_time = seconds
  		$init_max = 60; //* sleep_time = seconds
- 		$max_max = 120; //* sleep_time = seconds
+ 		$max_max = 900; //* sleep_time = seconds
 // 		$init_max = 30; //* sleep_time = seconds
 // 		$max_max = 40; //* sleep_time = seconds
 
 		$pid = $this->pid;
 		//Log::info($pid . ': ' . 'LOCK ');
-		$this->insert_log($pid . ': ' .'LOCK ');
+		$this->insert_log($pid . ': ' .'LOCK REQ ' . $message);
 
 		$max = $init_max;
 		$c = 0;
 		$finish = false;
 		while (! $finish){
-			while ( ! $this->_lock () && $c < $max ) {
+			while ( ! $this->_lock() && $c < $max ) {
 				$c ++;
 				Log::info ($pid . ': ' . 'lock sleep : ' . $c );
+				PUtil::logRed("#....#: LOCK RACE from pid: " . getmypid());
 				sleep($sleep_time);
 				//Log::info ( 'ruleengine lock sleep 2: ' . $pid . ' : ' . $c );
 			}
@@ -863,12 +908,12 @@ class GRuleEngineLock {
 		$stmt->bindParam ( 1, $pid, PDO::PARAM_INT );
 		$stmt->execute ();
 		$count = $stmt->rowCount();
-		Log::info($this->pid . ': ' . 'RELEASE ');
+		$this->insert_log($this->pid . ': ' . 'RELEASE');
 	}
 
 
 	public function _lock($force = false) {
-		//Log::info($this->pid . ': ' . '_lock: ' . $force);
+		//PUtil::logRed($this->pid . ': ' . '_lock: ' . ($force ?'TRUE':'FALSE'));
 		$pid = $this->pid;
 
 		// $SQL="update dsd.ruleengine_lock set ts_start = now() where id = 1 AND (ts_start is null OR ts_start < (now() - '2 minutes'::interval))";
@@ -916,7 +961,7 @@ class GRuleEngineLock {
 		}
 
 		//$SQL = 'UPDATE dsd.ruleengine_lock SET ts_start = now(), pid = ? WHERE  id = 1 AND ts_start is null';
-		$SQL = "UPDATE dsd.ruleengine_lock SET ts_start = now(), pid = ? WHERE  id = 1 AND (ts_start is null OR ts_start < (now() - '20 minutes'::interval))";
+		$SQL = "UPDATE dsd.ruleengine_lock SET ts_start = now(), pid = ? WHERE  id = 1 AND (ts_start is null OR ts_start < (now() - '30 minutes'::interval))";
 		try {
 			$dbh = dbconnect ();
 			// $dbh->beginTransaction();
@@ -925,7 +970,7 @@ class GRuleEngineLock {
 			$stmt->execute ();
 			$count = $stmt->rowCount ();
 			if ($count > 0) {
-				$this->insert_log($pid . ': ' .'RELEASE');
+				$this->insert_log($pid . ': ' .'LOCK ACK ');
 				return true;
 			}
 			// $dbh->commit();
@@ -941,7 +986,7 @@ class GRuleEngineLock {
 
 
 
-	public function insert_log($msg){
+	public static function insert_log($msg){
 		Log::info($msg);
 		//CREATE TABLE dsd.ruleengine_lock_log (id serial primary key, msg varchar, ts timestamp with time zone default now());
 		$dbh = dbconnect();

@@ -33,6 +33,7 @@ class AdminCatalogingController extends BaseController {
 			$o = 0;
 		};
 
+
 		$data = ARRAY();
 
 		$data = array(
@@ -53,9 +54,17 @@ class AdminCatalogingController extends BaseController {
 				'd'=>$d ,
 				'sl'=>$sl,
 				'ot'=>$ot,
+				'inprocess_reset'=>PUtil::getInProcessReset(),
 				'relation_work_wholepart_map' => Setting::get('relation_work_wholepart_map'),
+				'submit_status' => PUtil::getSubmitStatus(get_get('s_id')),
+				'submits_pending' => PUtil::getSubmitsPending(),
 		);
 
+
+		$page = PUtil::reset_int(get_get("page"), 1) < 0 ? 1 : PUtil::reset_int(get_get("page"), 1);
+		$data['page'] = $page ;
+		$limit = Config::get('arc.CATALOGING_PAGING_LIMIT',30);
+		$o = $page * $limit - $limit;
 
 
 		$ss = trim(get_get('t'));
@@ -80,19 +89,41 @@ class AdminCatalogingController extends BaseController {
 		}
 
 
+		////////////////////////////////////////////////////////////////////////////
+		if (!$init_query_flag){
+			$SQL2=sprintf ("
+			SELECT count(*) AS cnt
+			FROM dsd.item2 i,
+			dsd.to_gr_tsquery(?) as q
+			WHERE obj_type not in ('bitstream') AND obj_type not in ('digital-item') AND obj_type not in ('physical-item') AND q @@ i.fts  AND i.status not in ('%s')",Config::get('arc.ITEM_STATUS_ERROR'));
+		}else{
+			$SQL2=sprintf ("
+			SELECT count(*) AS cnt
+			FROM dsd.item2 i
+			WHERE obj_type not in ('bitstream') AND obj_type not in ('digital-item') AND obj_type not in ('physical-item') AND i.status not in ('%s')",Config::get('arc.ITEM_STATUS_ERROR'));
+		}
+
+		$stmt2 = $con->prepare ( $SQL2 );
+		if (!$init_query_flag){
+			$stmt2->bindParam(1, $ss);
+		}
+		$stmt2->execute ();
+		$res = $stmt2->fetch();
+		$data['total_res_cnt'] = $res['cnt'];
+		/////////////////////////////////////////////////////////////////////
+
+
+
 		$results=array();
 
-
-		$select_cols = 'i.item_id as id, i.jdata, i.obj_type, i.status , i.dt_update, i.obj_type, i.label, i.thumb,  user_create, user_update ';
-		$init_limit = 30;
-		$limit = 60;
+		$select_cols = 'i.item_id as id, i.jdata, i.obj_type, i.status , i.dt_update, i.obj_type, i.label, i.thumb, flags_json::text,  user_create, user_update ';
 
 		if ($init_query_flag){
 			$SQL=sprintf ("
 			SELECT %s
 			FROM dsd.item2 i
 			WHERE obj_type not in ('bitstream') AND obj_type not in ('digital-item') AND obj_type not in ('physical-item') AND i.status not in ('%s')
-			ORDER BY i.dt_update desc offset ? LIMIT %s",$select_cols,Config::get('arc.ITEM_STATUS_ERROR'),$init_limit);
+			ORDER BY i.dt_update desc offset ? LIMIT %s",$select_cols,Config::get('arc.ITEM_STATUS_ERROR'),$limit);
 		} else {
 			$SQL= sprintf ("
 			SELECT  %s, ts_rank_cd(fts, q) AS rank
@@ -108,6 +139,7 @@ class AdminCatalogingController extends BaseController {
 
 
 		$stmt = $con->prepare($SQL);
+
 		if (!$init_query_flag){
 			$stmt->bindParam(1, $ss);
 		}else{
@@ -173,7 +205,7 @@ class AdminCatalogingController extends BaseController {
 
 
 
-		$data['limit'] = $init_limit;
+		$data['limit'] = $limit;
 
 		$data['results'] = $results;
 		$data['ss'] = $ss;
@@ -188,4 +220,3 @@ class AdminCatalogingController extends BaseController {
 
 
 }
-?>

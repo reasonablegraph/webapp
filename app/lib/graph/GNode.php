@@ -12,6 +12,7 @@ interface ItemFlagsI {
 	public function addFlag($flag);
 	public function hasFlag($flag);
 	public function removeFlags();
+	public function removeFlag($flag);
 }
 
 
@@ -116,6 +117,11 @@ interface GNode extends ItemFlagsI, TmpAttributesI, AttributesI {
 
 
 	  public function isReadOnly();
+
+
+	public function reloadProperties();
+	public function loadProperties();
+
 
 }
 
@@ -428,7 +434,9 @@ class GNodeO  implements GNode {
 			return ($this->hasTmpAttribute('_READONLY'));
 		}
 		public function setReadOnly(){
-			$this->setTmpAttribute('_READONLY',true);
+			if ($this->_graph->canSetReadonly($this)) {
+				$this->setTmpAttribute('_READONLY', true);
+			}
 		}
 
 		public function updatePropertyValue($element, $idx, $text_value){
@@ -487,7 +495,7 @@ class GNodeO  implements GNode {
 
 	   	public function getFlagsJson(){
 				if (!empty($this->itemFlags)){
-					return json_encode($this->itemFlags);
+					return json_encode($this->itemFlags,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
 				}
 				return null;
 	   	}
@@ -507,6 +515,34 @@ class GNodeO  implements GNode {
 	   return false;
 	   }
 
+	   public function removeFlag($flag) {
+	   	$new_flags = array();
+	   	foreach ($this->itemFlags as $f) {
+	   		if ($flag != $f){
+	   			$new_flags[] = $f;
+	   		}
+	   	}
+	   	$this->itemFlags = $new_flags;
+	   }
+
+
+		public function reloadProperties(){
+			$id = $this->persistenceId();
+			if (!empty($id)){
+				//echo("RUNTIME: LOAD VERTEX: $id\n");
+				Log::info("RUNTIME: LOAD VERTEX: $id");
+				$g = $this->graph();
+				GGraphIO::addItemToGraph($g, $id);
+			}
+		}
+
+
+		public function loadProperties(){
+			if (!empty($this->_props) ){
+				return;
+			}
+			$this->reloadProperties();
+		}
 
 }
 
@@ -541,7 +577,7 @@ class ItemFlags  implements ItemFlagsI {
 
 	public function getFlagsJson(){
 		if (!empty($this->itemFlags)){
-			return json_encode($this->itemFlags);
+			return json_encode($this->itemFlags,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
 		}
 		return null;
 	}
@@ -562,11 +598,15 @@ class ItemFlags  implements ItemFlagsI {
 		return false;
 	}
 
+	public function removeFlag($flag) {
+		$new_flags = array();
+		foreach ($this->itemFlags as $f) {
+			if ($flag != $f){
+				$new_flags[] = $f;
+			}
+		}
+		$this->itemFlags = $new_flags;
+	}
+
 
 }
-
-
-
-
-
-

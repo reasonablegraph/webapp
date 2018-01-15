@@ -1,379 +1,456 @@
 <?php
 
 
-class SolrFilters {
+class SolrSearchFilter  extends SolrFilter implements  SolrQueryToken {
 
-	private $options;
-	private $filters_def;
-	private $default_record_type;
-	private $record_types = array();
-	private $filters;
-	private $empty_query_flag = false;
+  public function __construct() {
+    parent::__construct(SolrFilter::TYPE_AND);
+  }
 
-	function SolrFilters($options){
-		$this->options = $options;
-		$this->filters_def = $options['filters_def'];
-		$this->default_record_type = $options['default_record_type'];
-		$this->record_types = array_keys($this->filters_def);
-	}
+  private $params =array();
+  public function addParam($k,$v){
+    $this->params[$k]=$v;
+    parent::addTokenMatch($k,$v);
+  }
 
-	function parseInput(){
-			$record_type = null;
-			foreach ($this->record_types as $rt){
-				$filter_def = $this->filters_def['$rt'];
-					foreach ($filter_def as $f) {
-						if (Input::has($f)) {
-							$record_type = $rt;
-							break;
-						}
-					}
-				if (!empty($record_type)) {
-					brake;
-				}
-			}
-			if (empty($record_type)) {
-				$this->empty_query_flag = true;
-				$record_type = $this->default_record_type;
-			}
-	}
-	function getFilters($record_type){
-	}
+  public function hasParam($k){
+    return isset($this->params[$k]);
+  }
+
+  public function getParam($k){
+    return $this->params[$k];
+  }
+
 }
+
+
 
 class SolrSearch {
 
-	private $client;
-	private $data;
-	private $resultsPerPage;
-	private $maxResults = 1000;
-	private $start = 0;
-
-	function SolrSearch($opts = null){
-		Log::info("new SolrSeearch");
-		$opts = empty($opts) ? array() : $opts;
-
-		if (isset($opts['start'])) {
-			$this->start = $opts['start'];
-		}
-		if (isset($opts['paging_limit'])) {
-			$this->start = $opts['paging_limit'];
-		} else {
-			$this->resultsPerPage =  Config::get('arc.PAGING_LIMIT');
-		}
-		if (isset($opts['max_results'])) {
-			$this->maxResults = $opts['max_results'];
-		}
-
-		$this->data = array();
-		$this->data['resultsPerPage'] = $this->resultsPerPage;
-
-		//SOLR connection configuration
-		$config = array('endpoint' => PUtil::getSolrConfigEndPoints('opac'));
-		$this->client = new Solarium\Client($config);
-
-	}
-
-
-
-
-
-
-	private function _solr_search_similar_subjects($term) {
-
-		$maxRelevantSubjects = 10;
-		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		// QUERY 2 - GET RELEVANT SUBJECTS
-		$subjectsQuery = $this->client->createSelect();
-		$subjectsEdismax = $subjectsQuery->getEDisMax();
-		$subjectsEdismax->setQueryFields("catch_all_1^5.0 catch_all_2^3.0 catch_all_3^1.0");
-		$subjectsEdismax->setPhraseBigramFields("catch_all_1^5.0 catch_all_2^3.0 catch_all_3^1.0");
-		$subjectsQuery->setQuery($term);
-		$subjectsQuery->setRows($maxRelevantSubjects);
-		$subjectsQuery->setFields(array('id', 'opac1', 'is_subject'));
-		$subjectsQuery->createFilterQuery('subjects_filter_query')->setQuery("is_subject:true");
-		$subjectsResultset = $this->client->select($subjectsQuery);
-		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		return $subjectsResultset;
-	}
-
-
-
-	private function setupHighlighting($query){
-		// setup highlighting
-		$hl = $query->getHighlighting();
-		$hl->setUseFastVectorHighlighter(true);
-		$hl->setFields(array('title_hl', 'secondary_titles_hl', 'descriptions_hl', 'subjects_hl', 'authors_hl', 'places_hl'));
-		// 		$hl->setSimplePrefix('<b style="background-color:yellow">');
-		// 		$hl->setSimplePostfix('</b>');
-
-	}
-
-		private function setupQuery($query, $term,$filters, $start=null){
-		$start = empty($start)?$this->start : $start;
-
-		$edismax = $query->getEDisMax();
-		$edismax->setQueryFields("catch_all_1^5.0 catch_all_2^3.0 catch_all_3^1.0");
-		$edismax->setPhraseBigramFields("catch_all_1^5.0 catch_all_2^3.0 catch_all_3^1.0");
-
-		if (!empty($filters)) {
-			$filters_string = implode(" AND ", $filters);
-			$query->createFilterQuery('filter_query')->setQuery($filters_string);
-			//printf('<pre>%s</pre>',$filters_string);
-		}
-
-		if (empty($term)) {
-			$query->setQuery('*');
-		} else {
-			$query->setQuery($term);
-		}
-		$query->setRows($this->maxResults);
-		$query->setStart($start)->setRows($this->resultsPerPage);
-		$query->setFields(array('id', 'opac1', 'label'));
-
-	}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	function search($term, $filters, $start = null) {
-		//$this->solr_search_manif($term, $filters, $start);
-		//$this->solr_search_work($term, $filters, $start);
-		$this->solr_search_all($term, $filters, $start);
-		return $this->data;
-	}
-
-
-	private function solr_search_all($term, $filters, $start=null) {
-		$start = empty($start)?$this->start : $start;
-
-
-		//SORT_ASC ->addSortField('name', Solarium_Query_Select::SORT_ASC)
-		$sort_field = null;
-		$init_record_type = null;
-		if (isset($filters['record_type'])) {
-			$init_record_type = $filters['record_type'];
-		} else {
-			$init_record_type = 'all';
-		}
-		$query_manif_flag = ($init_record_type == 'all' || $init_record_type == 'record_type:"manifestation"' || $init_record_type == 'record_type:"work"');
-
-		$this->data['moreFacetsNum'] = Config::get('arc.MORE_FACETS_NUM', 5);
-		$this->data['subjectsResultsetNum'] = Config::get('arc.SUBJECTS_RESULTSET_NUM', 30);
-		$this->data['start'] = $start;
-
-		if (empty($term)){
-			$sort_field = 'create_dt';
-		}
-
-		$record_type  = isset($filters['record_type'])?$filters['record_type'] : 'record_type:"work"';
-
-
-
-		$search_manif = ($record_type =='record_type:"manifestation"');
-
-		//printf("<pre> INIT RECORD_TYPE: %s\n RECORD_TYPE: %s\n MANIF_QUERY: %s\n SEARCH_MANIF:%s </pre>",$init_record_type,$record_type, $query_manif_flag ? 'TRUE':'FALSE', $search_manif ? 'TRUE':'FALSE');
-
-		$filtersW = array_values($filters);
-		unset($filters['record_type']);
-		unset($filters['-record_type']);
-		$filtersM = array_values($filters);
-		$filtersM[] =  'record_type:"manifestation"';
-
-		$queryW = $this->client->createSelect();
-		$queryM = $this->client->createSelect();
-
-		$this->setupQuery($queryW,$term,$filtersW,$start);
-		$this->setupQuery($queryM,$term,$filtersM,$start);
-
-		// add stats settings
-		$stats = $queryW->getStats();
-		$stats->createField('num_of_manifestations');
-		$stats->createField('num_of_digital_items');
-
-		// create facets
-		$facetSetW = $queryW->getFacetSet();
-		$facetSetM = $queryM->getFacetSet();
-
-		$facetSetW->createFacetField('record_type')->setField('record_type');
-
-		$facetSetW->createFacetField('authors')->setField('authors');
-		$facetSetW->createFacetField('authors_with_ids')->setField('authors_with_ids');
-		$facetSetW->createFacetField('subjects')->setField('subjects');
-
-		$facetSetM->createFacetField('subjects_manif')->setField('subjects_manif');
-		$facetSetM->createFacetField('publication_places')->setField('publication_places');
-		$facetSetM->createFacetField('publication_places_with_ids')->setField('publication_places_with_ids');
-		$facetSetM->createFacetField('publication_types')->setField('publication_types');
-		$facetSetM->createFacetField('publishers')->setField('publishers');
-		$facetSetM->createFacetField('publishers_with_ids')->setField('publishers_with_ids');
-		$facetSetM->createFacetField('digital_item_types')->setField('digital_item_types');
-		$facetSetM->createFacetField('languages')->setField('languages');
-
-
-		if ($search_manif) {
-			$this->setupHighlighting($queryM);
-		} else {
-			$this->setupHighlighting($queryW);
-		}
-
-		if (!empty($sort_field)){
-			Log::info("ADD SORT CREATE_DT");
-			$queryW->addSort('create_dt', $queryW::SORT_DESC);
-			$queryM->addSort('create_dt', $queryM::SORT_DESC);
-		}
-		// get results
-		$resultsetW = $this->client->select($queryW);
-		if ($query_manif_flag ) {
-			$resultsetM = $this->client->select($queryM);
-		}
-
-
-		$facetHasResults = function($facet){
-			foreach ($facet as $r) {
-				if ($r > 0) { return 1; };
-			}
-			return null;
-		};
-
-
-
-		$record_type_facet = $resultsetW->getFacetSet()->getFacet('record_type');
-		$authors_facet = $resultsetW->getFacetSet()->getFacet('authors');
-		$authors_with_ids_facet = $resultsetW->getFacetSet()->getFacet('authors_with_ids');
-		$subjects_facet = $resultsetW->getFacetSet()->getFacet('subjects');
-		$this->data['record_type_facet'] = $record_type_facet;
-		$this->data['authors_facet'] = $authors_facet;
-		$this->data['authors_with_ids_facet'] = $authors_with_ids_facet;
-		$this->data['subjects_facet'] = $subjects_facet;
-
-		$has_subjects = $facetHasResults($subjects_facet);
-		$has_authors = $facetHasResults($authors_facet);
-		$has_authors_with_ids = $facetHasResults($authors_with_ids_facet);
-		$this->data['has_subjects'] = $has_subjects;
-		$this->data['has_authors'] = $has_authors;
-		$this->data['has_authors_with_ids'] = $has_authors_with_ids;
-
-
-		if ($query_manif_flag) {
-			$subjects_manif_facet = $resultsetM->getFacetSet()->getFacet('subjects_manif');
-			$publication_places_facet = $resultsetM->getFacetSet()->getFacet('publication_places');
-			$publication_places_with_ids_facet = $resultsetM->getFacetSet()->getFacet('publication_places_with_ids');
-			$publication_types_facet = $resultsetM->getFacetSet()->getFacet('publication_types');
-			$publishers_facet = $resultsetM->getFacetSet()->getFacet('publishers');
-			$publishers_with_ids_facet = $resultsetM->getFacetSet()->getFacet('publishers_with_ids');
-			$digital_item_types_facet = $resultsetM->getFacetSet()->getFacet('digital_item_types');
-			$languages_facet = $resultsetM->getFacetSet()->getFacet('languages');
-			$this->data['subjects_manif_facet'] = $subjects_manif_facet;
-			$this->data['publication_places_facet'] = $publication_places_facet;
-			$this->data['publication_places_with_ids_facet'] = $publication_places_with_ids_facet;
-			$this->data['publication_types_facet'] = $publication_types_facet;
-			$this->data['publishers_facet'] = $publishers_facet;
-			$this->data['publishers_with_ids_facet'] = $publishers_with_ids_facet;
-			$this->data['digital_item_types_facet'] = $digital_item_types_facet;
-			$this->data['languages_facet'] = $languages_facet;
-
-			$has_subjects_m = $facetHasResults($subjects_manif_facet);
-			$has_publication_places = $facetHasResults($publication_places_facet);
-			$has_publication_places_with_ids = $facetHasResults($publication_places_with_ids_facet);
-			$has_publication_types = $facetHasResults($publication_types_facet);
-			$has_publishers = $facetHasResults($publishers_facet);
-			$has_publishers_with_ids = $facetHasResults($publishers_with_ids_facet);
-			$has_digital_item_types = $facetHasResults($digital_item_types_facet);
-			$has_languages = $facetHasResults($languages_facet);
-			$this->data['has_subjects_m'] = $has_subjects_m;
-			$this->data['has_publication_places'] = $has_publication_places;
-			$this->data['has_publication_places_with_ids'] = $has_publication_places_with_ids;
-			$this->data['has_publication_types'] = $has_publication_types;
-			$this->data['has_publishers'] = $has_publishers;
-			$this->data['has_publishers_with_ids'] = $has_publishers_with_ids;
-			$this->data['has_digital_item_types'] = $has_digital_item_types;
-			$this->data['has_languages'] = $has_languages;
-
-		} else {
-			$this->data['has_subjects_m'] = false;
-			$this->data['has_publication_places'] = false;
-			$this->data['has_publication_places_with_ids'] = false;
-			$this->data['has_publication_types'] = false;
-			$this->data['has_publishers'] = false;
-			$this->data['has_publishers_with_ids'] = false;
-			$this->data['has_digital_item_types'] = false;
-			$this->data['has_languages'] = false;
-
-			$this->data['subjects_manif_facet'] = array();
-			$this->data['publication_places_facet'] = array();
-			$this->data['publication_places_with_ids_facet'] = array();
-			$this->data['publication_types_facet'] = array();
-			$this->data['publishers_facet'] = array();
-			$this->data['publishers_with_ids_facet'] = array();
-			$this->data['digital_item_types_facet'] = array();
-			$this->data['languages_facet'] = array();
-
-
-		}
-
-
-		// get stats results
-		$statsResult = $resultsetW->getStats();
-		//num of manifestations && DigitalItems
-		$numManifsFound = 0;
-		$numDigitalItemsFound = 0;
-		foreach ($statsResult as $field) {
-			if ($field->getName() == 'num_of_manifestations') {
-				$numManifsFound = $field->getSum();
-			}
-			if ($field->getName() == 'num_of_digital_items') {
-				$numDigitalItemsFound = $field->getSum();
-			}
-		}
-		$this->data['numManifsFound'] = $numManifsFound;
-		$this->data['numDigitalItemsFound'] = $numDigitalItemsFound;
-		/////////////////////////////////
-
-
-		$subjectsResultset = $this->_solr_search_similar_subjects($term);
-		$this->data['subjectsResultset'] = $subjectsResultset;
-		if ($search_manif){
-			$resultset = $resultsetM;
-		} else {
-			$resultset = $resultsetW;
-		}
-		//count
-		$total_cnt = $resultset->getNumFound();
-		$numPages = ceil($total_cnt / $this->resultsPerPage);
-		$this->data['resultset'] = $resultset;
-		$this->data['total_cnt'] = $total_cnt;
-		$this->data['numPages'] = $numPages;
-
-
-		// get highlighting results
-		$highlighting = $resultset->getHighlighting();
-		$this->data['highlighting'] = $highlighting;
-		///////////////////////////
-
-
-	}
-
-
+  private $client;
+  private $data;
+  private $resultsPerPage;
+  private $maxResults = 1000;
+  private $start = 0;
+
+  public function __construct($opts = null) {
+    //Log::info("new SolrSeearch");
+    $opts = empty($opts) ? array() : $opts;
+
+    if (isset($opts['start'])) {
+      $this->start = $opts['start'];
+    }
+    if (isset($opts['paging_limit'])) {
+      $this->start = $opts['paging_limit'];
+    } else {
+      $this->resultsPerPage = Config::get('arc.PAGING_LIMIT');
+    }
+    if (isset($opts['max_results'])) {
+      $this->maxResults = $opts['max_results'];
+    }
+
+    $this->data = array();
+    $this->data['resultsPerPage'] = $this->resultsPerPage;
+
+    //SOLR connection configuration
+    $config = array('endpoint' => PUtil::getSolrConfigEndPoints('opac'));
+    $this->client = new Solarium\Client($config);
+
+  }
+
+  private function _solr_search_similar_subjects($term) {
+
+    $maxRelevantSubjects = 10;
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // QUERY 2 - GET RELEVANT SUBJECTS
+    $subjectsQuery = $this->client->createSelect();
+    $subjectsEdismax = $subjectsQuery->getEDisMax();
+    $subjectsEdismax->setQueryFields("catch_all_1^5.0 catch_all_2^3.0 catch_all_3^1.0");
+    $subjectsEdismax->setPhraseBigramFields("catch_all_1^5.0 catch_all_2^3.0 catch_all_3^1.0");
+    $subjectsQuery->setQuery($term);
+    $subjectsQuery->setRows($maxRelevantSubjects);
+    $subjectsQuery->setFields(array('id', 'opac1', 'is_subject'));
+    $subjectsQuery->createFilterQuery('subjects_filter_query')->setQuery("is_subject:true");
+    $subjectsResultset = $this->client->select($subjectsQuery);
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    return $subjectsResultset;
+  }
+
+
+  private function setupHighlighting($query) {
+    return;
+    // setup highlighting
+    $hl = $query->getHighlighting();
+    $hl->setUseFastVectorHighlighter(true);
+    //TODO: NA METAFER8OUN SE CONFIG
+    $hl->setFields(array('title_hl', 'secondary_titles_hl', 'descriptions_hl', 'subjects_hl', 'authors_hl', 'places_hl'));
+    // 		$hl->setSimplePrefix('<b style="background-color:yellow">');
+    // 		$hl->setSimplePostfix('</b>');
+  }
+//
+//  /**
+//   * @param $query
+//   * @param $term
+//   * @param SolrSearchFilter $filters
+//   * @param null $start
+//   * @return mixed
+//   */
+//  private function setupQuery($channel_opts, $query, $term, $filters, $start = null) {
+//    PUtil::logRed(print_r($channel_opts,true));
+//    $start = empty($start) ? $this->start : $start;
+//    $resultQueryFlag = isset($channel_opts['result_query'])? $channel_opts['result_query'] : false;
+//
+//    $edismax = $query->getEDisMax();
+//    $edismax->setQueryFields("catch_all_1^5.0 catch_all_2^3.0 catch_all_3^1.0");
+//    $edismax->setPhraseBigramFields("catch_all_1^5.0 catch_all_2^3.0 catch_all_3^1.0");
+//
+//    if (!empty($filters)) {
+//      $helper = $query->getHelper();
+//      //PUtil::logRed(print_r($filters,true));
+////      $filters_string = '';
+////      $filter_AND='';
+////      foreach ($filters as $fk => $fv){
+////        $filters_string .= ($filter_AND . $fk . ':' . $helper->escapeTerm($fv));
+////          $filter_AND=' AND ';
+////      }
+//      $context  = new SolariumQueryContext($query);
+//      $filters_string = $filters->createQuery($context);
+//      $query->createFilterQuery('filter_query')->setQuery($filters_string);
+//      //PUtil::logYellow(sprintf('SOLRsetupQuery: %s',$filters_string));
+//    }
+//
+//    if (empty($term)) {
+//      $query->setQuery('*');
+//    } else {
+//      $query->setQuery($term);
+//    }
+//    $query->setRows($this->maxResults);
+//    $query->setStart($start)->setRows($this->resultsPerPage);
+//    //TODO: NA METAFER8OUN SE CONFIG
+//    if ($resultQueryFlag) {
+//      $query->setFields(array('id', 'opac1', 'label', 'form_type'));
+//    } else {
+//      $query->setFields(array('id', 'label', 'form_type'));
+//    }
+//    return $query;
+//  }
+
+
+
+  /**
+   * @param array $channel_opts
+   * @param string $term
+   * @param SolrSearchFilter $filters
+   * @param null $start
+   * @return mixed
+   */
+  private function createQuery($channel_opts, $term, $filters, $start = null) {
+    $query = $this->client->createSelect();
+    //PUtil::logRed(print_r($channel_opts,true));
+    $start = empty($start) ? $this->start : $start;
+    $resultQueryFlag = isset($channel_opts['result_query'])? $channel_opts['result_query'] : false;
+
+    $edismax = $query->getEDisMax();
+    $edismax->setQueryFields("catch_all_1^5.0 catch_all_2^3.0 catch_all_3^1.0");
+    $edismax->setPhraseBigramFields("catch_all_1^5.0 catch_all_2^3.0 catch_all_3^1.0");
+
+    if (!empty($filters)) {
+      $helper = $query->getHelper();
+      $context  = new SolariumQueryContext($query);
+      $filters_string = $filters->createQuery($context);
+      $query->createFilterQuery('filter_query')->setQuery($filters_string);
+      //PUtil::logYellow(sprintf('SOLRsetupQuery: %s',$filters_string));
+    }
+
+    if (empty($term)) {
+      $query->setQuery('*');
+      $query->addSort('create_dt', $query::SORT_DESC); //???
+    } else {
+      $query->setQuery($term);
+    }
+    $query->setRows($this->maxResults);
+    $query->setStart($start)->setRows($this->resultsPerPage);
+    //TODO: NA METAFER8OUN SE CONFIG - [ERROR]
+//     if ($resultQueryFlag) {
+      $query->setFields(array('id', 'opac1', 'label', 'form_type'));
+//       $query->addSort('id', $query::SORT_ASC);
+     // $query->addSort('id', $query::SORT_DESC); //???
+
+//     } else {
+//       $query->setFields(array('id', 'label', 'form_type'));
+//     }
+
+    return $query;
+  }
+
+
+  public function search($term, $filters, $start = null) {
+    //$this->solr_search_manif($term, $filters, $start);
+    //$this->solr_search_work($term, $filters, $start);
+    $this->solr_search_all($term, $filters, $start);
+    return $this->data;
+  }
+
+
+  private function mergeFaceteResults($results_1,$results_2){
+//    $results = $resultset['M']->getFacetSet()->getFacet($facete_name);
+//    $results_1 = $results;//
+//    $results = $resultset['W']->getFacetSet()->getFacet($facete_name);
+//    $results_2 = $results;
+    //$results = array_merge($results_1,$results_2);
+    $results = array();
+    foreach ($results_1 as $v => $count) {
+      $results[$v] = $count;
+    }
+    foreach ($results_2 as $v => $count) {
+      if (isset($results[$v])) {
+        $results[$v] += $count;
+      } else {
+        $results[$v] = $count;
+      }
+    }
+    arsort($results);
+    //$name = $facete_name;
+    return $results;
+  }
+
+
+  /**
+   * @param $facete_options
+   * @param $term
+   * @param SolrSearchFilter $filtersR
+   * @param SolrSearchFilter $filtersF
+   * @param null $start
+   * @return array
+   */
+//$data = $solrSearch->search2($channels, $solr_facetes_def, $filters, $term, $start);
+  public function search2($chanel_params, $facete_options, $filters, $term, $start = null) {
+    $start = empty($start) ? $this->start : $start;
+
+    $channel_names = array_keys($chanel_params);
+    //PUtil::logRed("FILTERS-INIT: " . json_encode($filters, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    //PUtil::logRed("FACETE  OPTS: " . json_encode($facete_options));
+    //SORT_ASC ->addSortField('name', Solarium_Query_Select::SORT_ASC)
+    $sort_field = null;
+
+    //if (!isset($filters['record_type'])){    }
+
+    $this->data['moreFacetsNum'] = Config::get('arc.MORE_FACETS_NUM', 5);
+    $this->data['subjectsResultsetNum'] = Config::get('arc.SUBJECTS_RESULTSET_NUM', 30);
+
+    $sort_field = null; //$sort_field = 'create_dt';
+    $this->data['start'] = $start;
+
+    $recordTypeQueryValue = null;
+    $recordTypeQuery = false;
+    $resultsManifFlag = false;
+
+
+    $query = array();
+    $facetSet = array();
+    foreach ($chanel_params as $ch=>$ch_params) {
+        $q = $this->createQuery($chanel_params,$term,$filters[$ch],$start);
+        $facetSet[$ch] = $q->getFacetSet();
+        $query[$ch] = $q;
+    }
+
+    //SOLR DEBUG
+    foreach ($channel_names as $ch){
+      //PUtil::logRed("FILTERS-R: " . json_encode($filtersS['R'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+      PUtil::logYellow("FILTERS-" . $ch. ': '  . $filters[$ch]);
+    }
+
+
+    // add stats settings
+    $stats = $query['R']->getStats();
+    $stats->createField('num_of_manifestations');
+    $stats->createField('num_of_digital_items');
+    $stats->createField('num_of_books');
+    $stats->createField('num_of_issues');
+
+
+//    foreach ($channel_names as $ch) {
+//      $facetSet[$ch] = $query[$ch]->getFacetSet();
+//    }
+
+
+    //'__form_type'=> array('solr_key'=>'form_type', 'channel'=>'A'),
+    $form_type_facete = '__form_type';
+    $facetSet['R']->createFacetField($form_type_facete)->setField('form_type');
+    foreach ($facete_options as $facete_name => $facete_params) {
+      $solr_key = $facete_params['solr_key'];
+      if (isset($facete_params['channel'])){
+        $ch = $facete_params['channel'];
+        $fct = $facetSet[$ch]->createFacetField($solr_key)->setField($solr_key)->setMinCount(1);
+        //$fct->setMinCount(1);
+      }
+//        $q = strtoupper($facete_params['q']);
+//        PUtil::logBlue('create facete: ' . $facete_name . '   q: ' . $q .  '   k: ' . $solr_key);
+//        $facetSet[$q]->createFacetField($solr_key)->setField($solr_key);
+    }
+
+
+//    if (!empty($sort_field)) {
+//      //Log::info("ADD SORT CREATE_DT");
+//      if ($resultsManifFlag) {
+//        $query['M']->addSort('create_dt', $query['M']::SORT_DESC);
+//      } else {
+//        $query['W']->addSort('create_dt', $query['W']::SORT_DESC);
+//      }
+//    }
+
+    $resultset = array();
+    $resultfaceteSet = array();
+    foreach ($chanel_params as $ch=>$ch_params) {
+       // PUtil::log("SOLR SELECT:  " . $ch);
+        $resultset[$ch] = $this->client->select($query[$ch]);
+        $resultfaceteSet[$ch] = $resultset[$ch]->getFacetSet();
+    }
+
+    $form_types = array();
+    $results_forms = $resultfaceteSet['R']->getFacet($form_type_facete);
+    if (!empty($resultset)) {
+      foreach ($results_forms as $v => $count) {
+        //PUtil::logGreen("FT: " . $v .  ' : ' . $count);
+        if ($count > 0) {
+          $form_types[$v] = $count;
+        }
+      }
+    }
+    //PUtil::logGreen(print_r($form_types,true));
+    $this->data['formTypes'] = $form_types;
+
+    $facetes = array();
+    foreach ($facete_options as $facete_name => $facete_params) {
+      $solr_key = $facete_params['solr_key'];
+//      if (!isset($facete_params['q'])) {
+//        trigger_error("facete param q missing");
+//      }
+//      $q = strtoupper($facete_params['q']);
+
+//      if ($facete_name == 'form_type'){
+//        $results = $results_forms;
+//      } else {
+        $channel = isset($facete_params['channel']) ? $facete_params['channel'] : 'R';
+        //PUtil::logBlue("F: " . $channel . ' : ' . $facete_name);
+        $results = $resultfaceteSet[$channel]->getFacet($solr_key);
+//      }
+      //$results = ($facete_name == 'form_type') ? $results_forms : $resultfaceteSet[$channel]->getFacet($solr_key);
+
+//      if (isset($facete_params['tr']) && $facete_params['tr']) {
+//        $results_tmp = array();
+//        foreach ($results as $v => $count) {
+//          if ($facete_params['tr'] == 's') {
+//            $results_tmp[trChoise($v . 's', $count)] = $count;
+//          } else {
+//            $results_tmp[trChoise($v, $count)] = $count;
+//          }
+//          //$results_tmp[$v] = $count;
+//        }
+//        $results = $results_tmp;
+//      }
+
+
+      $displayF =true;
+      if (isset($facete_params['display_on_form_type'])) {
+        $displayF = false;
+        $don = $facete_params['display_on_form_type'];
+        if(is_array($don)) {
+          foreach ($don as $df) {
+            if (isset($form_types[$df])) {
+              $displayF = true;
+              break;
+            }
+          }
+        }
+      }
+
+
+      if ($displayF) {
+        $facetes[$facete_name] = array('results' => $results, 'params' => $facete_params, 'name' => $facete_name);
+//        PUtil::logGreen("FACETE ADD: " . $facete_name  .  '           :  ' . $solr_key);
+//        foreach ($results as $value=>$count){
+//          PUtil::log($value . ' : ' . $count);
+//        }
+      } else {
+        PUtil::logRed("FACETE SKIP: " . $facete_name);
+      }
+
+    }
+    $this->data['facetes'] = $facetes;
+
+    // get stats results
+    $statsResult = $resultset['R']->getStats();
+    //num of manifestations && DigitalItems
+    $numManifsFound = 0;
+    $numDigitalItemsFound = 0;
+    $numBooksFound = 0;
+    $numIssuesFound = 0;
+    foreach ($statsResult as $field) {
+      if ($field->getName() == 'num_of_manifestations') {
+        $numManifsFound = $field->getSum();
+      }
+      if ($field->getName() == 'num_of_digital_items') {
+        $numDigitalItemsFound = $field->getSum();
+      }
+      if ($field->getName() == 'num_of_books') {
+      	$numBooksFound = $field->getSum();
+      }
+      if ($field->getName() == 'num_of_issues') {
+      	$numIssuesFound = $field->getSum();
+      }
+
+
+    }
+    $this->data['numManifsFound'] = $numManifsFound;
+    $this->data['numDigitalItemsFound'] = $numDigitalItemsFound;
+    $this->data['numBooksFound'] = $numBooksFound;
+    $this->data['numIssuesFound'] = $numIssuesFound;
+    /////////////////////////////////
+
+    $subjectsResultset = $this->_solr_search_similar_subjects($term);
+    $this->data['subjectsResultset'] = $subjectsResultset;
+
+//    foreach ($resultset as $ch=>$r){
+//      PUtil::logGreen($ch);
+//      PUtil::logGreen('---------------');
+//      foreach ($r as $document){
+//        $id = $document->id;
+//        $label = $document->label;
+//        $r = json_decode($document->opac1, true);
+//        $ot = $r['obj_type'];
+//        PUtil::logYellow($ch. " : " . $ot . ' : ' . $id . ' : ' . $label);
+//      }
+//      PUtil::logGreen('---------------');
+//    }
+
+    $res = $resultset['R'];
+
+    //count
+    $total_cnt = $res->getNumFound();
+    $numPages = ceil($total_cnt / $this->resultsPerPage);
+    $this->data['resultset'] = $res;
+    $this->data['total_cnt'] = $total_cnt;
+    $this->data['numPages'] = $numPages;
+
+
+    // get highlighting results
+    //$highlighting = $res->getHighlighting();
+    //$this->data['highlighting'] = $highlighting;
+    ///////////////////////////
+
+    //$this->data['facete_options'] = $facete_options;
+
+//    PUtil::logGreen('@solr_data ##############################################################');
+//    foreach ($this->data as $k=>$v){
+//      PUtil::logGreen($k);
+//    }
+//    PUtil::logGreen('@/solr_data ##############################################################');
+//    PUtil::log("--------------------------------------------------------");
+    return $this->data;
+
+  }
 
 }
+
+

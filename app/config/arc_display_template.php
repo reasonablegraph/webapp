@@ -29,6 +29,8 @@ return array(
 
 'work_title_opac' => '{{#element_dc_title}}{{element_dc_title}}{{#full_stop}}.{{/full_stop}}{{/element_dc_title}} {{title}}{{#part_number}}. {{part_number}}{{/part_number}}{{#title_part_name}}, {{title_part_name}}{{/title_part_name}} {{#form}}[{{form}}]{{/form}}{{#date}} ({{date}}).{{/date}}{{#place}} {{place}}.{{/place}}{{#language}} {{language}}.{{/language}} {{version}}',
 
+'periodic_title' => '{{{title}}}{{#title_remainder}} : {{{title_remainder}}}{{/title_remainder}}',
+
 'digital_item_catalogue_title' => '{{type}} {{#part_number}}({{part_number}}{{#page}},{{page}}{{/page}}) {{/part_number}} {{^part_number}}{{#page}}({{page}}) {{/page}}{{/part_number}}',
 
 'digital_item_connected_label' =>  tr('Digital item of manifestation').' «{{{manif_title}}}»',
@@ -47,6 +49,8 @@ return array(
 
 'lemma_category_label' => '{{{parent_label}}} > {{{dc_title}}}',
 
+'subcategory_label' => '{{{parent_label}}} > {{{dc_title}}}',
+
 'manifestation_citation'=> '{{#authors}}{{#delimiter}}, {{/delimiter}}{{{name}}}{{/authors}}{{#publication_date}}({{{publication_date}}}){{/publication_date}}{{#authors}}{{^delimiter}}.{{/delimiter}}{{/authors}}{{^authors}}{{#publication_date}}.{{/publication_date}}{{/authors}} {{title}}{{#title_remainder}}: {{{title_remainder}}}{{/title_remainder}}. {{#publication_place}}{{{publication_place}}}{{#publication_name}}:{{/publication_name}}{{/publication_place}} {{publication_name}}',
 
 'web_site_instance_citation'=> '{{#authors}}{{authors}}{{/authors}} {{#publication_date}}({{publication_date}}){{/publication_date}}{{#authors}}.{{/authors}}{{^authors}}{{#publication_date}}.{{/publication_date}}{{/authors}} {{title}}{{#title_remainder}}: {{title_remainder}}{{/title_remainder}}.{{#website_url}} Retrieved from {{website_url}}{{/website_url}}',
@@ -55,7 +59,8 @@ return array(
 
 'media_citation'=> '{{title}}{{#title_remainder}}: {{{title_remainder}}}{{/title_remainder}}',
 
-'manifestation_title_details' => '{{{title}}}
+'manifestation_title_details' => '{{{title}}}{{#issue}} #{{{issue}}}{{#issue_publication_month}}, {{#issue_publication_day}}{{issue_publication_day}}{{/issue_publication_day}} {{issue_publication_month}}{{/issue_publication_month}}{{#issue_publication_year}} ({{issue_publication_year}}){{/issue_publication_year}}{{/issue}}
+{{^issue}} {{#issue_publication_day}}# {{issue_publication_day}} {{/issue_publication_day}}{{#issue_publication_month}}{{^issue_publication_day}}# {{/issue_publication_day}}{{issue_publication_month}}{{/issue_publication_month}}{{#issue_publication_year}} ({{issue_publication_year}}){{/issue_publication_year}}{{/issue}}
 {{#title_remainder}} : {{{title_remainder}}} {{/title_remainder}}
 {{#title_medium}}[{{{title_medium}}}] {{/title_medium}}
 {{{title_partNumber}}}{{#title_partName}}, {{/title_partName}}{{{title_partName}}}
@@ -76,6 +81,19 @@ return array(
 {{#list}}{{#delimiter}} - {{/delimiter}}{{{value}}}{{/list}}
 {{/list_number}}
 {{#title_responsibility}} / {{{title_responsibility}}}. {{/title_responsibility}}',
+
+
+'manifestation_publication' =>'
+		{{#publication_place}}
+		{{#place}}{{#delimiter}};{{/delimiter}}{{value}}{{/place}}{{#publication_name}}: {{/publication_name}}
+		{{/publication_place}}
+		{{#publication_name}}{{^publication_place}}: {{/publication_place}}
+		{{#name}}{{#delimiter}}-{{/delimiter}}{{value}}{{/name}}{{#publication_date}},{{/publication_date}}
+		{{/publication_name}}
+		{{publication_date}}',
+
+
+
 
 // 'manifestation_contained' => '
 // <div aria-hidden="true">
@@ -105,6 +123,24 @@ return array(
 									{{#text_value}}{{text_value}}{{/text_value}}
 						</div>',
 
+'one_line_relation' => '
+							{{{label}}}
+							<div class="{{grid_col_class}}">
+									{{#line_list}}
+												{{#link_list}}{{#url}}<a href="{{url}}" >{{title}}</a>{{/url}}{{^url}}{{title}}{{/url}}{{^del_stop}} | {{/del_stop}}{{/link_list}}
+									{{/line_list}}
+						</div>',
+
+'one_list_relation' => '
+							{{{label}}}
+							<div class="{{grid_col_class}}">
+									{{#line_list}}
+										<ul class="nested-list">
+											{{#link_list}}<li>{{#url}}<a href="{{url}}" >{{title}}</a>{{/url}}{{^url}}{{title}}{{/url}}</li>{{/link_list}}
+										</ul>
+									{{/line_list}}
+						</div>',
+
 'one_label_line' => '
 							{{{label}}}
 							<div class="{{grid_col_class}}">
@@ -113,6 +149,35 @@ return array(
 												{{#link_list}}{{#delimiter}} - {{/delimiter}}{{#url}}<a class="{{class}}" href="{{url}}" >{{/url}}{{#description}}{{description}}{{/description}}{{^description}}{{value}}{{/description}}{{#url}}</a>{{/url}}{{/link_list}}
 									{{/line_list}}
 						</div>',
+
+'one_label_line_dash' => '
+							{{{label}}}
+							<div class="{{grid_col_class}}">
+									{{#line_list}}
+												{{#list}}{{#delimiter}} | {{/delimiter}}{{value}}{{/list}}
+												{{#link_list}}{{#delimiter}} | {{/delimiter}}{{#url}}<a class="{{class}}" href="{{url}}" >{{/url}}{{#description}}{{description}}{{/description}}{{^description}}{{value}}{{/description}}{{#url}}</a>{{/url}}{{/link_list}}
+									{{/line_list}}
+						</div>',
+
+'one_label_line_isbn' => '
+							{{{label}}}
+							<div class="{{grid_col_class}}">
+									{{#line_list}}
+												{{#list}}{{#delimiter}}, {{/delimiter}}{{value}}{{/list}}
+												{{#link_list}}{{#delimiter}}, {{/delimiter}}{{#url}}<a class="{{class}}" href="{{url}}" >{{/url}}{{#description}}{{description}}{{/description}}{{^description}}{{value}}{{/description}}{{#url}}</a>{{/url}}{{/link_list}}
+									{{/line_list}}
+						</div>',
+
+//BIBFRAME
+'agent_associated' => '
+							{{{label}}}
+							<div class="{{grid_col_class}}">
+								{{#container}}
+									{{#inner}}{{#del}}{{del}}{{/del}}
+											{{#list}}{{#delimiter}}({{value}}){{/delimiter}}{{/list}}
+											{{#link_list}}{{#delimiter}} ({{/delimiter}}{{#url}}<a class="{{class}}" href="{{url}}" >{{/url}}{{#description}}{{description}}{{/description}}{{^description}}{{value}}{{/description}}{{#url}}</a>{{/url}}{{#delimiter}}){{/delimiter}}{{/link_list}}{{/inner}}
+								{{/container}}
+							</div>',
 
 'one_label_list' => '
 							{{{label}}}
@@ -125,6 +190,20 @@ return array(
 									{{/line_list}}
 						</div>',
 
+'one_label_line_multi' => '
+		{{#ex_array}}
+						{{#ex_list}}
+							{{#label}}
+									<div class="row {{class}}">
+											<label class="{{grid_col_class_label}}" style="text-align:left;">{{label}}</label>
+											<div class="{{grid_col_class}}">
+												{{#link_list}}{{#delimiter}},{{/delimiter}} {{value}}{{/link_list}}
+											</div>
+									</div>
+							{{/label}}
+						{{/ex_list}}
+		{{/ex_array}}',
+
 'oneline' => '
 							{{{label}}}
 							<div class="{{grid_col_class}}">
@@ -132,6 +211,19 @@ return array(
 									{{#value}}{{#url}}<a class="{{class}}" href="{{url}}" >{{/url}}{{value}}{{#url}}</a>{{/url}}{{/value}}
 								{{/array_val}}
 							</div>',
+
+
+'oneline_item_with_notes' => '
+							{{{label}}}
+							<div class="{{grid_col_class}}">
+									{{#line_list}}
+												{{#link_list}}{{#delimiter}} - {{/delimiter}}{{#url}}<a class="{{class}}" href="{{url}}" >{{/url}}{{#description}}{{description}}{{/description}}{{^description}}{{value}}{{/description}}{{#url}}</a>{{/url}} {{notes}}{{/link_list}}
+									{{/line_list}}
+							</div>',
+
+'notes' => '{{#dateStart}}({{dateStart}}{{#dateEnd}},{{/dateEnd}} {{dateEnd}}){{/dateStart}}
+						{{^dateStart}}{{#dateEnd}}({{dateEnd}}){{/dateEnd}}{{/dateStart}}
+						{{#note}}[{{note}}]{{/note}}',
 
 'one_label_combination' => '
 	{{{label}}}
@@ -180,7 +272,7 @@ return array(
 		// 									</div>',
 
 
-'solr_link' => '<div class="solr_link label label-success"><span class="glyphicon glyphicon-link" aria-hidden="true"></span> <a href="{{url}}" >{{title}} "{{label}}"</a></div>',
+'solr_link' => '<div class="solr_link label label-success"><span class="glyphicon glyphicon-link" aria-hidden="true"></span> <a href="{{url}}" >{{title}} "{{label}}" {{#mnumber}}({{mnumber}}){{/mnumber}}</a></div>',
 
 
 'date1' => '{{{label}}} <div class="{{grid_col_class}}"> {{#comment}}{{comment}}{{/comment}} {{^comment}}{{day}}{{#day}}{{#month}} {{/month}}{{/day}}{{#day}}{{^month}}{{#year}}/ /{{/year}}{{/month}}{{/day}}{{month}}{{#month}}{{#year}} {{/year}}{{/month}}{{year}}{{#day}}{{^month}}{{^year}}/ /{{/year}}{{/month}}{{/day}}{{/comment}}</div>',

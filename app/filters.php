@@ -144,15 +144,19 @@ App::before(function($request)
 	$app = App::make('arc');
 
 
+//	$forwardedHost = $request->header('X-Forwarded-Host');
+
+	$arcfe = $request->header('X-ARCFE');
+	$app->arcfe = empty($arcfe)? null : $arcfe;
+
 	$lang = $request->header('X-DRUPAL-LANG');
 	//Log::info("X-DRUPAL-LANG: " . $lang);
 	if ($lang){
 		$app->language = $lang;
+		App::setLocale($app->language);
 	} else {
-		$app->language = 'el';
+		$app->language = App::getLocale();
 	}
-
-	App::setLocale($app->language);
 
 	$username = $request->header('X-DRUPAL-USERNAME');
 	if ($username){
@@ -162,7 +166,6 @@ App::before(function($request)
 	if($uid){
 		$app->uid  = $uid;
 	}
-
 	$user_access = Request::header('X-DRUPAL-ACCESS');
 	$app->user_access  = ! empty($user_access) ? $user_access : null;
 

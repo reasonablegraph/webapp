@@ -158,15 +158,25 @@ function dbconnect(){
 
 function trChoise($str, $count, $context='opac',  $parameters = array(), $locale = null){
 	//Log::info('trChoise');
+	if (empty($locale) && isset($GLOBALS['force_language'])) {
+		//PUtil::logRed('forcing language to: ' . $GLOBALS['force_language']);
+		$locale = $GLOBALS['force_language'];
+	}
 	$id  =  $context . '.' . $str;
 	$rep =  Lang::choice($id, $count, $parameters, $locale);
+	//PUtil::log("id is: " . $id . ", rep is: " . $rep);
 	if ($rep == $id){  return $str; }
 	return $rep;
 }
 
 function tr($str, $context='opac',  $parameters = array(), $locale = null){
+	if (empty($locale) && isset($GLOBALS['force_language'])) {
+		//PUtil::logRed('forcing language to: ' . $GLOBALS['force_language']);
+		$locale = $GLOBALS['force_language'];
+	}
 	$id = $context.'.'.$str;
 	$rep =  Lang::get($id, $parameters, $locale);
+// 	PUtil::log("id is: " . $id . ", rep is: " . $rep);
 	if ($rep == $id){  return $str; }
 	return $rep;
 }
@@ -300,6 +310,12 @@ function user_access_admin(){
 function user_access_login(){
 	return ArcApp::user_access_login();
 }
+
+function user_is_anonymous(){
+	return ArcApp::isAnonymous();
+}
+
+
 // function  user_access( $permision){
 
 // 	if(Config::get('arc.SKIP_PERMISSION')){

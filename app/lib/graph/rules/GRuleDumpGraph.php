@@ -15,30 +15,33 @@ class GruleDumpGraphCmd implements GCommand {
 
 	public function execute($context){
 
+		$DUMP_GRAPHVIZ = Config::get('arc.DUMP_GRAPHVIZ',0);
+		if (!$DUMP_GRAPHVIZ) {
+			return;
+		}
 		$graph = $this->graph;
 		$c = $this->c;
 		Log::info("##: GruleDumpGraphCmd: " . $c);
 		$title = null;
-		if (!empty($this->title)){
+		if (!empty($this->title)) {
 			$title = $this->title;
 		} else {
-			$title = sprintf('g%s',$c);
+			$title = sprintf('g%s', $c);
 		}
 
 		$out = "\n";
-		$out .="=================================================================================================\n";
-		$out .="DUMP GRAPH $c: \n";
-		$out .=$this->title;
-		$out .="\n";
-		$out .="=================================================================================================\n";
-		$out .= GGraphUtil::dump1($graph,false);
-		$out .="=================================================================================================\n";
+		$out .= "=================================================================================================\n";
+		$out .= "DUMP GRAPH $c: \n";
+		$out .= $this->title;
+		$out .= "\n";
+		$out .= "=================================================================================================\n";
+		$out .= GGraphUtil::dump1($graph, false);
+		$out .= "=================================================================================================\n";
 
 		//Log::info($out);
-		$file1 = sprintf('/tmp/g%s.dot',$c);
-		$file2 = sprintf('/tmp/g%s.txt',$c);
-		GGraphUtil::dumpDOT($graph,array('file'=>$file1,'label'=>$title,'neighbourhoodFlag'=>false,'inferredFlag'=>true,'graph_dump_file'=>$file2));
-
+		$file1 = sprintf('/tmp/g%s.dot', $c);
+		$file2 = sprintf('/tmp/g%s.txt', $c);
+		GGraphUtil::dumpDOT($graph, array('file' => $file1, 'label' => $title, 'neighbourhoodFlag' => false, 'inferredFlag' => true, 'graph_dump_file' => $file2));
 	}
 
 
@@ -72,6 +75,11 @@ class GRuleDumpGraph  extends AbstractBaseRule implements  GRule {
 
 	public function execute(){
 
+		$DUMP_GRAPHVIZ = Config::get('arc.DUMP_GRAPHVIZ',0);
+		if (!$DUMP_GRAPHVIZ) {
+			return;
+		}
+
 		$context = $this->context;
 		//Log::info('GRuleDumpGraph');
 		$c = $context->get('dump_graph_counter',0);
@@ -91,20 +99,6 @@ class GRuleDumpGraph  extends AbstractBaseRule implements  GRule {
 			$cmd->execute($context);
 		}
 
-// 		$out = "\n";
-// 		$out .="=================================================================================================\n";
-// 		$out .="DUMP GRAPH $c: \n";
-// 		if (!empty($this->title)){
-// 			$out .=$this->title;
-// 			$out .="\n";
-// 		}
-// 		$out .="=================================================================================================\n";
-// 		$out .= GGraphUtil::dump1($graph,false);
-// 		$out .="=================================================================================================\n";
-
-// 		Log::info($out);
-// 		$file = sprintf('/tmp/g%s.dot',$c);
-// 		GGraphUtil::dumpGraphviz($graph,$file);
 
 	}
 

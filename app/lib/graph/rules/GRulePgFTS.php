@@ -133,6 +133,16 @@ class GRulePgFTS extends AbstractGruleProcessVertice implements GRule {
 	}
 
 
+	private function processPeriodic( $v){
+		$id = $v->persistenceId();
+		$title  = GRuleUtil::getLabel($v);
+		$this->ftsData->stuff->addA($title);
+		$this->ftsData->opac->addA($title);
+		$this->ftsData->subject->addA($title);
+
+	}
+
+
 	private function processExpression( $v){
 		$title = $v->getPropertyValue('dc:title:');
 		$this->ftsData->stuff->addA($title);
@@ -422,6 +432,8 @@ class GRulePgFTS extends AbstractGruleProcessVertice implements GRule {
 			$this->processExpression( $v);
 		}elseif ($obj_type == 'auth-work'){
 			$this->processWork($v);
+		}elseif ($obj_type == 'periodic'){
+			$this->processPeriodic($v);
 		}elseif ($obj_type == 'subject-chain'){
 			$this->processSubjectChain($v);
 		}elseif ($obj_type == 'collection'){
@@ -447,5 +459,3 @@ class GRulePgFTS extends AbstractGruleProcessVertice implements GRule {
 
 }
 
-
-?>

@@ -196,5 +196,3 @@ class  GRuleRelationTransitive extends AbstractBaseRule implements  GRule {
 
 
 }
-
-?>

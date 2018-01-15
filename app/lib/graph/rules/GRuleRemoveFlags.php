@@ -12,5 +12,4 @@ class GRuleRemoveFlags extends AbstractGruleProcessVertice implements GRule {
 
 
 }
-?>
 

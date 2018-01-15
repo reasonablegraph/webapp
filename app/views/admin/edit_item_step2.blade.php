@@ -34,6 +34,14 @@ $item_in_archive =   $_REQUEST['item_in_archive'];
 $item_create_dt =    $_REQUEST['item_create_dt'];
 $item_update_dt =    $_REQUEST['item_update_dt'];
 $item_user_create =  $_REQUEST['item_user_create'];
+$has_bitstreams =    $_REQUEST['has_bitstreams'] ;
+
+$is_periodic  = $_REQUEST['is_periodic'] ; //DRYLL
+$periodic_notification  = $_REQUEST['periodic_notification'] ; //DRYLL
+$is_book = $_REQUEST['is_book']; //DRYLL
+$book_notification = $_REQUEST['book_notification'];  //DRYLL
+$is_issue = $_REQUEST['is_issue']; //DRYLL
+$issue_notification = $_REQUEST['issue_notification'];  //DRYLL
 
 
 $dbh = dbconnect();
@@ -89,6 +97,7 @@ if ($item_load_flag && ! PUtil::user_access_item_submiter()){
 
   ?>
 
+  @include('includes.edit_step2-flashes')
 	@include('includes.step2-links')
 
 <?php
@@ -154,18 +163,33 @@ if (! empty($cd)){
 
 if (!empty($item_id) ){
 	$item_basic = PDAO::getItemBasic($item_id);
+
+// 	echo("<pre>");
+// 	print_r($has_bitstreams);
+// 	echo("</pre>");
+
+
 // 	echo('<table class="table table-striped table-bordered table-hover">');
 // 	printf('<tr><td>%s</td><td>%s</td></tr>','label:',$item_basic['label']);
 // 	printf('<tr><td>%s</td><td>%s</td></tr>','obj_type:',$item_basic['obj_type']);
 // 	printf('<tr><td>%s</td><td>%s</td></tr>','flags:',$item_basic['flags_json']);
 // 	printf('<tr><td>%s</td><td>%s</td></tr>','status:',$item_basic['status']);
 // 	echo("</table>");
+
+	$json = json_decode($item_basic['jdata'], true);
+	if(!empty($json['label'])){
+		$label= $json['label'];
+	}else{
+		$label = $item_basic['label'];
+	}
+
+
 ?>
 	<div class="panel panel-primary">
 	<table class="table table-bordered table-condensed">
 	<thead class="a_thead"><tr><th colspan="8"><span class="a_shead">Basics</span></th></tr></thead>
 		<tr>
-			<td class="datd">Label</td><td colspan="7"><strong>{{$item_basic['label']}}</strong></td>
+			<td class="datd">Label</td><td colspan="7"><strong>{{$label}}</strong></td>
 		</tr>
 		<tr>
 			<td class="datd">Obj type:</td><td colspan="7">{{tr("object type: ".$item_basic['obj_type'])}}</td>
@@ -477,8 +501,14 @@ if ($item_load_flag){
 				<div class="a_dhead">JData</div>
 				<pre class="a_pre">
 					@foreach ($jdata as $k=>$v)
-					<b>{{$k}}</b>:{{{json_encode($v, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)}}}
-				<br>
+						{{--@if (in_array($k,array('opac1','opac2','solr_data',"neighbourhood")))--}}
+						@if (is_object($v))
+							<b>{{$k}}</b>:<br>
+							{{--{{json_encode($v, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)}}--}}
+							@foreach ($v as $sk=>$sv) ↳ {{$sk}} :  {{json_encode($sv, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)}} <br> @endforeach
+						@else
+						<b>{{$k}}</b>:{{json_encode($v, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)}}<br>
+						@endif
 				@endforeach
 				</pre>
 				</div>

@@ -1,4 +1,13 @@
+@include('includes.edit_step3-flashes')
+
 <?php auth_check_mentainer(); ?>
+
+<?php
+$app = App::make('arc');
+if ($app->arcfe == 'testrg') {
+	echo('<script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"/>');
+}
+?>
 
 <?php
    //lock edit form submitter
@@ -10,6 +19,15 @@
    if ( $edit_lock_owner && $item_user_create!= $user && !$is_admin){
    	$edit_link = false;
    }
+
+   $json = json_decode($item['jdata'], true);
+   if(!empty($json['label'])){
+   	$label= $json['label'];
+   }else{
+   	$label = $item['label'];
+   }
+
+
  ?>
 
 @include('includes.step3-links')
@@ -20,7 +38,7 @@ tr.secondary td {
 }
 </style>
 
-<h1  class="admin item-title">{{{$item['label']}}}</h1>
+<h1  class="admin item-title">{{{$label}}}</h1>
 
 	<div class="panel panel-primary">
 <table class="table table-bordered table-condensed">
@@ -35,7 +53,7 @@ tr.secondary td {
 	<tr>
 		<td colspan="1"><strong>Create:</strong> {{{ (new DateTime($item['dt_create']))->format('d/m/Y H:i') }}}</td>
 		<td colspan="1"><strong>Update:</strong> {{{ (new DateTime($item['dt_update']))->format('d/m/Y H:i') }}}</td>
-		<td colspan="1"><strong>Submitted by:</strong> {{$item['user_create']}}</td>
+		<td colspan="1"><strong>Submitted by:</strong> {{$item['user_create']}} @if(!empty($item['user_org']))({{$item['user_org']}})@endif</td>
 	</tr>
 	<!-- <tr><td>{{{tr('title')}}}</td><td> {{{$item['title']}}}</td></tr> -->
 </table>
@@ -57,29 +75,42 @@ $action = sprintf ( '?i=%s', $item_id );
 $display_bundle = true;
 $display_seq_id = true;
 
+$demo_enable = Config::get('arc.demo_enable',0);
 ?>
 
+@if ($edit_link)
+	 @if (!$demo_enable || $is_admin)
+		<div class="panel panel-primary">
+		  <div class="a_thead a_bitstream">
+			 <?php echo tr('Upload bitstream');?>
+		  </div>
+		  <div class="panel-body bitstream">
+				@include('admin.bitstream_upload_form', ['obj_class' =>  $item ['obj_class']])
+		  </div>
+		</div>
+	@else
+		<div class="panel panel-primary">
+		  <div class="a_thead a_bitstream">
+			 <?php echo tr('Upload bitstream');?>
+		  </div>
+		  <div class="panel-body bitstream demo">
+				Upload functionality has been disabled for this demo account for security reasons.
+				<br>Please get in contact with the admins (<a href="mailto:info@reasonablegraph.org">info@reasonablegraph.org</a>) to provide you with an account with full rights.
+		  </div>
+		</div>
+	@endif
 
-<div class="panel panel-primary">
-  <div class="a_thead a_bitstream">
-	 <?php echo tr('Upload bitstream');?>
-  </div>
-  <div class="panel-body bitstream">
-		@include('admin.bitstream_upload_form', ['obj_class' =>  $item ['obj_class']])
-    </div>
-</div>
-
+@endif
 
 @if ($item['obj_class'] == 'auth-manifestation' && $edit_link)
-
-<div class="row btnadd">
-<div class="col-sm-12">
-	<a href="{{{UrlPrefixes::$item_edit_step1}}}?aft=1&afti={{{$item_id}}}"
-		class="btn btn-primary"> <span class="glyphicon glyphicon-plus"
-		aria-hidden="true"></span> Add item
-	</a>
-</div>
-</div>
+	<div class="row btnadd">
+	<div class="col-sm-12">
+		<a href="{{{UrlPrefixes::$item_edit_step1}}}?aft=1&afti={{{$item_id}}}"
+			class="btn btn-primary"> <span class="glyphicon glyphicon-plus"
+			aria-hidden="true"></span> Add item
+		</a>
+	</div>
+	</div>
 @endif
 
 @include('includes.step3-links')

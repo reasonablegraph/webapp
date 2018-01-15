@@ -41,7 +41,8 @@ class AbstractGruleProcessVertice extends AbstractBaseRule implements GRule {
 		foreach ( $vertices as $v ) {
 			/*@var $v GVertex */
 			if ($this->skip_readonly && $v->isReadOnly()){
-				$context->addDebugMessage("SKIP READONLY VERTEX: " . $v->urnStr());
+				//Putil::logRed("@@: SKIP READONLY VERTEX: " . $v->urnStr());
+				//$context->addDebugMessage("SKIP READONLY VERTEX: " . $v->urnStr());
 				continue;
 			}
 			$ot = $v->getObjectType();
@@ -197,5 +198,3 @@ class AbstractGruleProcessVertice extends AbstractBaseRule implements GRule {
 
 
 }
-
-?>

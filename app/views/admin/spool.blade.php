@@ -18,6 +18,10 @@ if (!empty($user)){
 }
 // $direct_upload_flag = get_post("direct",0);
 
+
+$demo_enable = Config::get('arc.demo_enable',0);
+
+
 $uploadData = null;
 // if (isset($_FILES['uploadedfile'])){
 // $uploadData = $_FILES['uploadedfile'];
@@ -284,21 +288,37 @@ if (sizeof($filenames) > 0) {
 		echo "<tr>";
 		echo "<td><a $class_filename_ref href=\"$path\">$filedisp</a> $location_folder</td>\n";
 		echo "<td class=\"cnum\" align=\"right\">${size}&#160;MB</td>\n";
-		if ($d == 1) {
-			printf('<td class="cnum"><form class="form-horizontal" method = "post">
-				<a class="action-btn" href="/prepo/edit_step1?edoc=/docs/%s">Submit</a>
-				<button name="delete" value="delete" class="action-btn delete"  onClick="return confirm(\'%s\')">Delete</button>
-				<input type="hidden" name="file_path" value="%s"/>
-	 			<input type="hidden" name="file_name" value="%s"/></form></td>', $file_path_op, $file.tr(' will be Deleted! Are you sure?'), $infos['path'], $file);
-		}else{
-// 			echo "<td><a href=\"$move\">[move to spool]</a> &nbsp; </td>\n";
-			printf('<td class="cnum"><form class="form-horizontal" method = "post">
-				<a class="action-btn" href="%s">Move to spool</a>
-				<button name="delete" value="delete" class="action-btn delete"  onClick="return confirm(\'%s\')">Delete</button>
-				<input type="hidden" name="file_path" value="%s"/>
-				<input type="hidden" name="file_name" value="%s"/></form></td>', $move, $file.tr(' will be Deleted! Are you sure?'), $infos['path'], $file);
 
+		if (!$demo_enable || $is_admin) {
+			if ($d == 1) {
+				printf('<td class="cnum"><form class="form-horizontal" method = "post">
+					<a class="action-btn" href="/prepo/edit_step1?edoc=/docs/%s">Submit</a>
+					<button name="delete" value="delete" class="action-btn delete"  onClick="return confirm(\'%s\')">Delete</button>
+					<input type="hidden" name="file_path" value="%s"/>
+		 			<input type="hidden" name="file_name" value="%s"/></form></td>', $file_path_op, $file.tr(' will be Deleted! Are you sure?'), $infos['path'], $file);
+			}else{
+	// 			echo "<td><a href=\"$move\">[move to spool]</a> &nbsp; </td>\n";
+				printf('<td class="cnum"><form class="form-horizontal" method = "post">
+					<a class="action-btn" href="%s">Move to spool</a>
+					<button name="delete" value="delete" class="action-btn delete"  onClick="return confirm(\'%s\')">Delete</button>
+					<input type="hidden" name="file_path" value="%s"/>
+					<input type="hidden" name="file_name" value="%s"/></form></td>', $move, $file.tr(' will be Deleted! Are you sure?'), $infos['path'], $file);
+			}
+		}else{
+			if ($d == 1) {
+				printf('<td class="cnum"><form class="form-horizontal" method = "post">
+					<a class="action-btn" href="/prepo/edit_step1?edoc=/docs/%s">Submit</a>
+					<input type="hidden" name="file_path" value="%s"/>
+		 			<input type="hidden" name="file_name" value="%s"/></form></td>', $file_path_op, $infos['path'], $file);
+			}else{
+				printf('<td class="cnum"><form class="form-horizontal" method = "post">
+					<a class="action-btn" href="%s">Move to spool</a>
+					<input type="hidden" name="file_path" value="%s"/>
+					<input type="hidden" name="file_name" value="%s"/></form></td>', $move, $infos['path'], $file);
+			}
 		}
+
+
 			// echo "<td> <img src=\"/prepo/_assets/img/page_white_copy.png\" alt=\"copy to clipboard\" title=\"Copy to Clipboard\" /> </td>\n";
 		echo "</tr>\n";
 	}
@@ -403,21 +423,33 @@ echo " </div> </div>";
 ?>
 <?php 	if ($d == 1) : ?>
 
-<div class="panel panel-primary">
-	<div class="a_thead a_bitstream"> File Upload</div>
-	<div class="panel-upload panel-body">
-		<form method="POST" enctype="multipart/form-data">
-			<div class="fileUpload">
-					<input id="uploadFile" name="uploadedfile[]" placeholder="Choose File"  type="file" multiple  />
-			</div>
-			<div class="fileUpload uploadbut">
-					<span>Upload</span>
-					<input id="uploadBtn" class="upload" type="submit" value="send_file"/>
-			</div>
-		</form>
-	</div>
-</div>
 
+	@if (!$demo_enable || $is_admin)
+		<div class="panel panel-primary">
+			<div class="a_thead a_bitstream"> File Upload</div>
+			<div class="panel-upload panel-body">
+				<form method="POST" enctype="multipart/form-data">
+					<div class="fileUpload">
+							<input id="uploadFile" name="uploadedfile[]" placeholder="Choose File"  type="file" multiple  />
+					</div>
+					<div class="fileUpload uploadbut">
+							<span>Upload</span>
+							<input id="uploadBtn" class="upload" type="submit" value="send_file"/>
+					</div>
+				</form>
+			</div>
+		</div>
+	@else
+		<div class="panel panel-primary">
+		  <div class="a_thead a_bitstream">
+			 <?php echo tr(' File Upload');?>
+		  </div>
+		  <div class="panel-body bitstream demo">
+				Upload functionality has been disabled for this demo account for security reasons.
+				<br>Please get in contact with the admins (<a href="mailto:info@reasonablegraph.org">info@reasonablegraph.org</a>) to provide you with an account with full rights.
+		  </div>
+		</div>
+	@endif
 
 <?php
 endif
